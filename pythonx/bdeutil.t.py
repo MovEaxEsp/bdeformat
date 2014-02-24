@@ -249,6 +249,15 @@ class TestDriver(unittest.TestCase):
         # TODO test this with a func that uses -> in an arg, and the search
         # that starts after the >
 
+        # TODO test
+    #bdema_ManagedPtr<dmpit::PublisherRequest> req(
+                                          #new (*alloc) PublisherRequest(alloc),
+                                          #alloc);
+
+        #  TODO test
+    #Subscription newSubscription(requ@est->sub@scriptionId(),
+                                 #request->subscrib@er().ptr());
+
 # Test functions in 'bdeutil
 if __name__ == "__main__":
     unittest.main();
