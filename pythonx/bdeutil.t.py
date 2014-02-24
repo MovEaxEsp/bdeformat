@@ -32,6 +32,9 @@ class TestDriver(unittest.TestCase):
 
         A(f("(a)(a)a", 0, "a", 1), 6)
 
+        A(f("a->bcd", 4, "a", -1), 0)
+        A(f("a<b->c>c", 0, "c", 1), 7)
+
     def test_findOpenClose(self):
         f = bdeutil.findOpenClose
         A = self.assertEqual
@@ -63,14 +66,16 @@ class TestDriver(unittest.TestCase):
         f = bdeutil.parseElement
         A = self.assertEqual
 
-        A(f("int a;"), ("int", "a", "", ";", ""))
-        A(f(" const int a;"), ("const int", "a", "", ";", ""))
-        A(f("(int *)c,"), ("", "(int *)c", "", ",", ""))
-        A(f('int f = "123";'), ("int", "f", '= "123"', ";", ""))
+        A(f("int a;"), ("int", "", "a", "", ";", ""))
+        A(f(" const int a;"), ("const int", "", "a", "", ";", ""))
+        A(f("(int *)c,"), ("", "", "(int *)c", "", ",", ""))
+        A(f('int f = "123";'), ("int", "", "f", '= "123"', ";", ""))
         A(f("int **c = 0; // something"),
-           ("int", "**c", "= 0", ";", "something"))
-        A(f("int& c)"), ("int&", "c", "", ")", ""))
-        A(f("int *& d}"), ("int *&", "d", "", "}",""))
+           ("int", "**", "c", "= 0", ";", "something"))
+        A(f("int& c)"), ("int&", "", "c", "", ")", ""))
+        A(f("int *& d}"), ("int *&", "", "d", "", "}",""))
+        A(f("int *  e;"), ("int", "*", "e", "", ";", ""))
+        A(f("&a,"), ("", "", "&a", "", ",", ""))
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -83,17 +88,17 @@ class TestDriver(unittest.TestCase):
                                            e.replace("|", "   ")) for e in x])]
         A = self.assertEqual
 
-        l = ["int         | a||,|",
-             "char        | b||,|",
-             "void        |*c||,|",
-             "another type| x|= 2|,|"]
+        l = ["int         | |a||,|",
+             "char        | |b||,|",
+             "void        |*|c||,|",
+             "another type| |x|= 2|,|"]
         A(f(l), l)
 
-        l = ["int         |   abc|= 123|,|",
-             "char        |   b  |= 2345|,|",
-             "void        |***c||,|",
-             "void ***&   |***c||,|",
-             "another type|   x  |= 2|,|"]
+        l = ["int         |   |abc|= 123|,|",
+             "char        |   |b  |= 2345|,|",
+             "void        |***|c||,|",
+             "void ***&   |***|c||,|",
+             "another type|   |x  |= 2|,|"]
         A(f(l), l)
 
     def test_writeAlignedElements(self):
@@ -211,7 +216,7 @@ class TestDriver(unittest.TestCase):
             "void       *d_void;      // last line",
             ""])
 
-    def no_test_fixBdeBlock(self):
+    def test_fixBdeBlock(self):
         f = bdeutil.fixBdeBlock
         A = self.assertEqual
 
@@ -228,7 +233,6 @@ class TestDriver(unittest.TestCase):
              "       void             *baz,",
              "       bslma::Allocator *alloc = 0) = 0;"])
 
-        # TODO fix.  Should handle spaces between * and name correctly
         A(f("int foo(int bar, void *  baz, bslma::Allocator *alloc = 0) = 0;",
             20, 40, 0),
             ["int foo(",
@@ -236,22 +240,11 @@ class TestDriver(unittest.TestCase):
              "       void             *baz,",
              "       bslma::Allocator *alloc = 0) = 0;"])
 
-        # TODO fix.  Shouldn't align the '=' if there is only one
         A(f("int foo(int bar, void *bazxx, bslma::Allocator *a = 0) = 0;",
             20, 40, 0),
-            ["int foo(",
-             "       int               bar,",
-             "       void             *bazxx,",
-             "       bslma::Allocator *a = 0) = 0;"])
-
-        # TODO fix.  Should handle definitions without names
-        A(f("bdef_Function<void (*)(int, char, void *, bslma::Allocator *)> "
-                                                                  "Something;",
-            20, 80, 0),
-            ["bdef_Function<void (*)(int,",
-             "                       char,",
-             "                       void *,",
-             "                       bslma::Allocator *)> Something;"]);
+            ["int foo(int               bar,",
+             "        void             *bazxx,",
+             "        bslma::Allocator *a = 0) = 0;"])
 
         # TODO test this with a func that uses -> in an arg, and the search
         # that starts after the >

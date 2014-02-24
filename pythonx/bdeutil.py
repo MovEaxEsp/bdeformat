@@ -71,16 +71,14 @@ def findSkippingGroups(line, pos, chars, direction):
         if pos == -1:
             return -1
 
-        # Found one of the characters we're looking for
-        if line[pos] in chars:
-            return pos
-
         #If we found a '>', see if it's actually '->', and shouldn't be
         #treated as the close of a group
         if pos > 0 and line[pos] == '>' and line[pos-1] == '-':
-            # Skip this character.  We can only hit this case if direction is
-            # negative
-            pos -= 1
+            # Skip this character.
+            pos += direction
+        elif line[pos] in chars:
+            # Found one of the characters we're looking for
+            return pos
         else:
             break
 
@@ -160,17 +158,17 @@ def parseElement(element):
     * A definition of a function/template parameter
     * An argument in a function call/template definition
     * A variable declaration
-    Return a tuple containing '(<type>, <name>, <value>, <endChar>, <comment>)'
+    Return a tuple containing '(<type>, <stars>, <name>, <value>, <endChar>,
+    <comment>)'
     where any piece that isn't present in 'element' is an empty string. For
     example, member variable declaration like
     'const unsigned char *abc = "123"; // easy'
     would return
-    '("const unsigned char", "*abc", "= "123"", ";", "// easy")'
+    '("const unsigned char", "*", "abc", "= "123"", ";", "// easy")'
     Note:
-    For pointer declarations, the '*' is part of the 'name', while for
-    references, the '&' is part of the type if there is a type and the 'name'
-    if there isn't.
-    If the 'element' couldn't be parsed, a ValueError is raised
+    For references, the '&' is part of the type if there is a type and the
+    'name' if there isn't.  If the 'element' couldn't be parsed, a ValueError
+    is raised
     """
     endPos = findSkippingGroups(element, 0, ",;)}>]", 1)
     if endPos == -1:
@@ -193,29 +191,34 @@ def parseElement(element):
     if nameStart == -1:
         # The 'element' starts with the name
         nameStart = 0
+    elif element[nameStart] == " " or element[nameStart] == "*":
+        nameStart += 1
 
-    while element[nameStart] == '*':
-        #Include all the * in the name
-        nameStart -= 1
+    starsStart = nameStart - 1;
+    while element[starsStart] == '*' or element[starsStart] == ' ':
+        starsStart -= 1
+
+    starsStart += 1
 
     typeStart = 0
     while element[typeStart] in " *":
         typeStart += 1
 
-    if typeStart < nameStart and element[typeStart] != '(':
+    if typeStart < starsStart and element[typeStart] != '(':
         # We assume that if the 'element' doesn't start with a '(...)' part,
-        # and there are some characters before 'nameStart', that it starts with
-        # the type
+        # and there are some characters before 'starsStart', that it starts
+        # with the type
         haveType = True
     else:
         haveType = False
 
     if haveType:
-        typeStr = element[:nameStart].strip()
-        nameStr = element[nameStart:nameEnd + 1].strip()
+        typeStr = element[:starsStart].strip()
     else:
         typeStr = ""
-        nameStr = element[:nameEnd + 1].strip()
+
+    starsStr = element[starsStart:nameStart].replace(" ", "")
+    nameStr = " ".join(element[nameStart:nameEnd + 1].strip().split())
 
     if equalPos > 0:
         valueStr = element[equalPos:endPos].strip()
@@ -227,51 +230,43 @@ def parseElement(element):
     commentStr = element[endPos  + 1:].replace("//", "").replace("\n", " ")
     commentStr = commentStr.strip()
 
-    return (typeStr, nameStr, valueStr, endChar, commentStr)
+    return (typeStr, starsStr, nameStr, valueStr, endChar, commentStr)
 
 def alignElementParts(parsedElements):
     """
     Align the parts of all the specified 'parsedElements' which is a list of
     tuples returned by 'parseElement' by appropriately padding the 'type',
-    'name', and 'value' elements of each and returning a new list of these
-    aligned tuples.
+    'stars, 'name', and 'value' elements of each and returning a new list of
+    these aligned tuples.
     """
     typeWidth = 0
-    nameWidthSansStars = 0
-    numStars = 0
+    starsWidth = 0
+    nameWidth= 0
+    numWithValues = 0
 
     for elem in parsedElements:
         typeWidth = max(typeWidth, len(elem[0]))
-
-        elemNumStars = 0
-        while elem[1][elemNumStars] == "*":
-            elemNumStars += 1
-        numStars = max(numStars, elemNumStars)
-
-        nameWidthSansStars = max(nameWidthSansStars,
-                                 len(elem[1]) - elemNumStars)
+        starsWidth = max(starsWidth, len(elem[1]))
+        nameWidth= max(nameWidth, len(elem[2]))
+        if len(elem[3]) > 0:
+            numWithValues += 1
 
     if typeWidth == 0:
-        # If there are no types, ignore aligning the asterisks
-        numStars = 0
+        # If there are no types, ignore aligning the stars
+        starsWidth = 0
 
     retList = []
     for elem in parsedElements:
         newType = elem[0].ljust(typeWidth)
-
-        newName = elem[1]
-        elemNumStars = 0
-        if numStars > 0:
-            while elem[1][elemNumStars] == "*":
-                elemNumStars += 1
-
-            newName = newName.rjust(len(elem[1]) + numStars - elemNumStars)
+        newStars = elem[1].rjust(starsWidth)
 
         # Pad the name on the right if this element has a value
-        if len(elem[2]) > 0:
-            newName = newName.ljust(nameWidthSansStars + numStars)
+        if numWithValues > 1 and len(elem[3]) > 0:
+            newName = elem[2].ljust(nameWidth)
+        else:
+            newName = elem[2]
 
-        retList.append((newType, newName, elem[2], elem[3], elem[4]))
+        retList.append((newType, newStars, newName, elem[3], elem[4], elem[5]))
 
     return retList
 
@@ -293,16 +288,19 @@ def writeAlignedElements(alignedElements):
             line = elem[0] + " "
             nameStart = len(line) + 1
 
-        # Write name
+        # Write stars
         line = line + elem[1]
 
+        # Write name
+        line = line + elem[2]
+
         # Write value
-        if len(elem[2]) > 0:
-            line = line + " " + elem[2]
+        if len(elem[3]) > 0:
+            line = line + " " + elem[3]
 
-        line = line + elem[3]
+        line = line + elem[4]
 
-        ret.append((line, elem[4]))
+        ret.append((line, elem[5]))
 
     return (ret, nameStart)
 
@@ -313,12 +311,13 @@ def tryWriteBdeGroupOneLine(parsedElements, width):
     """
 
     for elem in parsedElements:
-        if len(elem[4]) > 0:
+        if len(elem[5]) > 0:
             # If any element has a comment, we can't write on one line
             return None
 
     ret = " ".join(
-       [" ".join(filter(len, elem[0:3])) + elem[3] for elem in parsedElements])
+       [" ".join(filter(len, [elem[0], elem[1] + elem[2], elem[3]])) +
+                 elem[4] + elem[5] for elem in parsedElements])
 
     return None if len(ret) > width else ret
 
