@@ -12,13 +12,13 @@ def fixBdeBlock():
     col -= 1
     text = buf[startRow]
 
-    while not bdeutil.findOpen(text, col):
+    while not bdeutil.findOpen(text, col) and endRow - startRow < 20:
         startRow -= 1
         prevLine = buf[startRow]
         text = prevLine + "\n" + text
         col += len(prevLine) + 1
 
-    while not bdeutil.findClose(text, col):
+    while not bdeutil.findClose(text, col) and endRow - startRow < 20:
         endRow += 1
         text = text + "\n" + buf[endRow]
 
