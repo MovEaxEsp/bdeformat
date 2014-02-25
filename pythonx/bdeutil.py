@@ -125,7 +125,7 @@ def findOpenClose(line, pos):
 
 def determineElements(line, openClose):
     """
-    Return a list containing the the comma separated elements within the
+    Return a list containing the comma separated elements within the
     specified 'openClose'. Any comment following an element is assumed to be a
     part of the element.
     """
