@@ -293,6 +293,7 @@ class TestDriver(unittest.TestCase):
 
             numAt = 0
             atPos = inS.find("@")
+            self.assertNotEqual(atPos, -1)
             while atPos != -1:
                 ret = bdeutil.fixBdeBlock(inS.translate(None, "@"),
                                           atPos - numAt,
@@ -311,36 +312,46 @@ class TestDriver(unittest.TestCase):
                     void             *baz,
                     bslma::Allocator *alloc = 0) = 0;
           """)
-        # TODO finish the rest of the test cases
 
-        A(f("int foo(int bar, void *baz, bslma::Allocator *alloc = 0) = 0;",
-            20, 40, 0),
-            ["int foo(",
-             "       int               bar,",
-             "       void             *baz,",
-             "       bslma::Allocator *alloc = 0) = 0;"])
+        T("""
+            Subscription newSubscription(requ@est->sub@scriptionId(),
+                                 request->subscrib@er().ptr());
+          ""","""
+            Subscription newSubscription(request->subscriptionId(),
+                                         request->subscriber().ptr());
+          """)
 
-        A(f("int foo(int bar, void *  baz, bslma::Allocator *alloc = 0) = 0;",
-            20, 40, 0),
-            ["int foo(",
-             "       int               bar,",
-             "       void             *baz,",
-             "       bslma::Allocator *alloc = 0) = 0;"])
+        T("""
+            int foo(int bar, void *@baz, bslma::AllWocator *alloc = 0) = 0;
+          ""","""
+            int foo(
+                   int               bar,
+                   void             *baz,
+                   bslma::Allocator *alloc = 0) = 0;
+          """)
 
-        A(f("int foo(int bar, void *bazxx, bslma::Allocator *a = 0) = 0;",
-            20, 40, 0),
-            ["int foo(int               bar,",
-             "        void             *bazxx,",
-             "        bslma::Allocator *a = 0) = 0;"])
+        T("""
+            int foo(int   bar, void *   @baz, bslmaW::Allocator
+            *alloc = 0) = 0;
+          ""","""
+            int foo(
+                   int               bar,
+                   void             *baz,
+                   bslma::Allocator *alloc = 0) = 0;
+          """)
+
+        T("""
+            int foo(int bar,@ void *bazxx, bslmaW::Allocator *a = 0) = 0;
+          ""","""
+            int foo(int               bar,
+                    void             *bazxx,
+                    bslma::Allocator *a = 0) = 0;
+          """)
 
         # TODO test
     #bdema_ManagedPtr<dmpit::PublisherRequest> req(
                                           #new (*alloc) PublisherRequest(alloc),
                                           #alloc);
-
-        #  TODO test
-    #Subscription newSubscription(requ@est->sub@scriptionId(),
-                                 #request->subscrib@er().ptr());
 
     # TODO test
                 #ret = bdeutil.fixBdeBlock(     in.translate(None, "@"),
