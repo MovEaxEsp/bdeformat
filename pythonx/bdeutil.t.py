@@ -6,76 +6,127 @@ import bdeutil
 class TestDriver(unittest.TestCase):
 
     def test_findNextOccurrence(self):
-
-        f = bdeutil.findNextOccurrence
+        f = lambda s, c, d: bdeutil.findNextOccurrence(s.replace("@", ""),
+                                                       s.find("@"),
+                                                       c,
+                                                       d)
         A = self.assertEqual
 
-        A(f("abcd", 0, "b",  1), 1)
-        A(f("abcd", 0, "bc", 1), 1)
-        A(f("abcd", 0, "bc", -1), -1)
-        A(f("abcd", 1, "bc", -1), 1)
-        A(f("abcd", 2, "bc", 1), 2)
-        A(f("abcd", 2, "bc", -1), 2)
-        A(f("abcd", 3, "bc", -1), 2)
-        A(f("abcd", 0, "a", 1), 0)
-        A(f("abcd", 0, "a", -1), 0)
-        A(f("abcd", 3, "d", 1), 3)
-        A(f("abcd", 3, "d", -1), 3)
+        # Use '@' to indicate the position of the start of the search, and '#'
+        # to indicate the end.  If '#' isn't in the test string, the search is
+        # assumed to fail.
+        T = lambda s, c, d: A(f(s.replace("#", ""), c, d),
+                              s.replace("@", "").find("#"))
+
+
+        T("@a#bcd", "b", 1)
+        T("@a#bcd", "bc", 1)
+        T("@abc", "bc", -1)
+        T("a@#bcd", "bc", -1)
+        T("ab@#cd", "bc", 1)
+        T("ab@#cd", "bc", -1)
+        T("ab#c@d", "bc", -1)
+        T("@#abcd", "a", 1)
+        T("@#abcd", "a", -1)
+        T("abc@#d", "d", 1)
+        T("abc@#d", "d", -1)
 
     def test_findSkippingGroups(self):
-        f = bdeutil.findSkippingGroups
+        f = lambda s, c, d: bdeutil.findSkippingGroups(s.replace("@", ""),
+                                                       s.find("@"),
+                                                       c,
+                                                       d)
         A = self.assertEqual
 
-        A(f("a(abc)b", 0, "b", 1), 6)
-        A(f("a(abc)b", 1, "b", 1), 6)
-        A(f("a(abc)b", 2, "b", 1), 3)
+        # Use '@' to indicate the position of the start of the search, and '#'
+        # to indicate the end.  If '#' isn't in the test string, the search is
+        # assumed to fail.
+        T = lambda s, c, d: A(f(s.replace("#", ""), c, d),
+                              s.replace("@", "").find("#"))
 
-        A(f("(a)(a)a", 0, "a", 1), 6)
-
-        A(f("a->bcd", 4, "a", -1), 0)
-        A(f("a<b->c>c", 0, "c", 1), 7)
+        T("@a(abc)#b", "b", 1)
+        T("a@(abc)#b", "b", 1)
+        T("a(@a#bc)b", "b", 1)
+        T("@(a)(a)#a", "a", 1)
+        T("#a->b@cd", "a", -1)
+        T("@a<b->c>#c", "c", 1)
 
     def test_findOpenClose(self):
-        f = bdeutil.findOpenClose
-        A = self.assertEqual
+        # Use '@' to indicate the position of the start of the search, and '#'
+        # to indicate the 'open' and 'close' positions.  If '#' aren't in the
+        # test string, the search is assumed to fail.
+        def T(s):
+            noAt = s.replace("@", "")
+            ret = (noAt.find("#"), noAt.find("#", noAt.find("#") + 1) - 1)
+            if ret == (-1, -2):
+                ret = None
 
-        A(f("foo(i a, i b) s", 0), None)
-        A(f("foo(i a, i b) s", 3), None)
-        A(f("foo(i a, i b) s", 4), (3, 12))
-        A(f("foo(i a, i b) s", 5), (3, 12))
-        A(f("foo(i a, i b) s", 11), (3, 12))
-        A(f("foo(i a, i b) s", 12), None)
+            self.assertEqual(bdeutil.findOpenClose(
+                                             s.translate(None, "@#"),
+                                             s.translate(None, "#").find("@")),
+                             ret)
+
+        T("@foo(i a, i b) s")
+        T("foo@(i a, i b) s")
+        T("foo#(@i a, i b#) s")
+        T("foo#(i@ a, i b#) s")
+        T("foo#(i a, i @b#) s")
+        T("foo(i a, i b@) s")
 
     def test_determineElements(self):
-        f = lambda x: bdeutil.determineElements(x, (0, len(x) - 1))
-        g = lambda x, b, e: bdeutil.determineElements(x, (b, len(x) - 1 - e))
-        A = self.assertEqual
+        def T(s):
+            noPipe = s.replace("|", "")
+            openPos = noPipe.find("#")
+            openClose = (openPos, noPipe.find("#", openPos + 1) - 1)
 
-        A(f("(int a, int b)"), ["int a,", "int b)"])
-        A(f("(int a)"), ["int a)"])
-        A(f("[int a, int (*f)(), int<void> x]"),
-            ["int a,", "int (*f)(),", "int<void> x]"])
-        A(g("""(int a, // some arg\n
-                void *c, // another arg\n
-                something& else);""", 0, 1),
-          ["int a, // some arg",
-           "void *c, // another arg",
-           "something& else)"])
+            rawS = s.translate(None, "#|")
+            ret = bdeutil.determineElements(rawS, openClose)
+            expected = []
+
+            noHash = s.translate(None, "#")
+
+            pipe1Pos = noHash.find("|")
+            pipe2Pos = noHash.find("|", pipe1Pos + 1)
+            while pipe1Pos != -1 and pipe2Pos != -1:
+                expected.append(noHash[pipe1Pos + 1:pipe2Pos])
+                pipe1Pos = noHash.find("|", pipe2Pos + 1)
+                pipe2Pos = noHash.find("|", pipe1Pos + 1)
+
+            self.assertEqual(bdeutil.determineElements(rawS, openClose),
+                             expected)
+
+        T("#(|int a,| |int b#)|")
+        T("#(|int a#)|")
+        T("#[|int a,| |int (*f)(),| |int<void> x#]|"),
+        T("""#(|int a, // some arg|
+               |void *c, // another arg|
+               |something& else#)|;""")
 
     def test_parseElement(self):
         f = bdeutil.parseElement
         A = self.assertEqual
 
-        A(f("int a;"), ("int", "", "a", "", ";", ""))
-        A(f(" const int a;"), ("const int", "", "a", "", ";", ""))
-        A(f("(int *)c,"), ("", "", "(int *)c", "", ",", ""))
-        A(f('int f = "123";'), ("int", "", "f", '= "123"', ";", ""))
-        A(f("int **c = 0; // something"),
-           ("int", "**", "c", "= 0", ";", "something"))
-        A(f("int& c)"), ("int&", "", "c", "", ")", ""))
-        A(f("int *& d}"), ("int *&", "", "d", "", "}",""))
-        A(f("int *  e;"), ("int", "*", "e", "", ";", ""))
-        A(f("&a,"), ("", "", "&a", "", ",", ""))
+        def T(s):
+            expected = []
+            prevPipePos = s.find("|")
+            pipePos = s.find("|", prevPipePos + 1)
+            while prevPipePos != -1 and pipePos != -1:
+                expected.append(s[prevPipePos + 1:pipePos].strip(" /"))
+                prevPipePos = pipePos
+                pipePos = s.find("|", pipePos + 1)
+
+            self.assertEqual(bdeutil.parseElement(s.translate(None, "|")),
+                                                  tuple(expected))
+
+        T("|int|| a||;||")
+        T("  |const int|| a||;||")
+        T("|||(int *)c||;||")
+        T('|int|| f| = "123"|;||')
+        T("|int| **|c| = 0|;| // something|")
+        T("|int&|| c||)||")
+        T("|int *&|| d||}||")
+        T("|int| *|   e||;||")
+        T("|||&a||,||")
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -220,11 +271,47 @@ class TestDriver(unittest.TestCase):
         f = bdeutil.fixBdeBlock
         A = self.assertEqual
 
-        A(f("int foo(int bar, void *baz, bslma::Allocator *alloc = 0) = 0;",
-            20, 41, 0),
-            ["int foo(int               bar,",
-             "        void             *baz,",
-             "        bslma::Allocator *alloc = 0) = 0;"])
+        # Special characters
+        # '@' - position to start search.  If multiple are present, the
+        #       function is called multiple times, once for each '@'
+        # 'W' - width marker.  The position of this specifies the 'width' arg
+        #       to the function.  If this isn't present, '79' is assumed.
+        # 'C' - the distance from this to 'W' specifies the comment width.  If
+        #       this isn't present, '40' is assumed
+        def T(inS, outS, width=79, commentWidth=40):
+            wPos = inS.find("W")
+            if wPos != -1:
+                width = wPos
+
+            cPos = inS.find("C")
+            if cPos != -1:
+                commentWidth = width - cPos
+
+            inS = inS.translate(None, "CW")
+
+            expected = outS.split("\n")
+
+            numAt = 0
+            atPos = inS.find("@")
+            while atPos != -1:
+                ret = bdeutil.fixBdeBlock(inS.translate(None, "@"),
+                                          atPos - numAt,
+                                          width,
+                                          commentWidth)
+
+                atPos = inS.find("@", atPos + 1)
+                numAt += 1
+
+                self.assertEqual(ret, expected)
+
+        T("""
+            int foo(@int bar,@ void *baz, bslma::AllocatorW *alloc = @0) = 0;
+          ""","""
+            int foo(int               bar,
+                    void             *baz,
+                    bslma::Allocator *alloc = 0) = 0;
+          """)
+        # TODO finish the rest of the test cases
 
         A(f("int foo(int bar, void *baz, bslma::Allocator *alloc = 0) = 0;",
             20, 40, 0),
@@ -246,9 +333,6 @@ class TestDriver(unittest.TestCase):
              "        void             *bazxx,",
              "        bslma::Allocator *a = 0) = 0;"])
 
-        # TODO test this with a func that uses -> in an arg, and the search
-        # that starts after the >
-
         # TODO test
     #bdema_ManagedPtr<dmpit::PublisherRequest> req(
                                           #new (*alloc) PublisherRequest(alloc),
@@ -257,6 +341,12 @@ class TestDriver(unittest.TestCase):
         #  TODO test
     #Subscription newSubscription(requ@est->sub@scriptionId(),
                                  #request->subscrib@er().ptr());
+
+    # TODO test
+                #ret = bdeutil.fixBdeBlock(     in.translate(None, "@"),
+                                          #atPos - numAt,
+                                                  #width,
+                                                  #commentWidth)
 
 # Test functions in 'bdeutil
 if __name__ == "__main__":
