@@ -57,14 +57,14 @@ class TestDriver(unittest.TestCase):
         # test string, the search is assumed to fail.
         def T(s):
             noAt = s.replace("@", "")
-            ret = (noAt.find("#"), noAt.find("#", noAt.find("#") + 1) - 1)
-            if ret == (-1, -2):
-                ret = None
+            expected = (noAt.find("#"), noAt.find("#", noAt.find("#") + 1) - 1)
+            if expected == (-1, -2):
+                expected = None
 
             self.assertEqual(bdeutil.findOpenClose(
                                              s.translate(None, "@#"),
                                              s.translate(None, "#").find("@")),
-                             ret)
+                             expected)
 
         T("@foo(i a, i b) s")
         T("foo@(i a, i b) s")
@@ -72,6 +72,8 @@ class TestDriver(unittest.TestCase):
         T("foo#(i@ a, i b#) s")
         T("foo#(i a, i @b#) s")
         T("foo(i a, i b@) s")
+        T("#(foo@(i a) something#)")
+        T("#(foo(i a@)#)")
 
     def test_determineElements(self):
         def T(s):
@@ -314,8 +316,8 @@ class TestDriver(unittest.TestCase):
           """)
 
         T("""
-            Subscription newSubscription(requ@est->sub@scriptionId(),
-                                 request->subscrib@er().ptr());
+            Subscription newSubscription(requ@est->sub@scriptionId@(@),
+                                 request->subscrib@er().ptr@(@));
           ""","""
             Subscription newSubscription(request->subscriptionId(),
                                          request->subscriber().ptr());

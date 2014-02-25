@@ -121,7 +121,16 @@ def findOpenClose(line, pos):
     openPos = findOpen(line, pos)
     closePos = findClose(line, pos)
 
-    return (openPos, closePos) if openPos and closePos else None
+    if openPos == pos:
+        openPos = findOpen(line, pos - 1)
+        if openPos != None:
+            closePos = findClose(line, openPos + 1)
+    elif closePos == pos:
+        closePos = findClose(line, pos + 1)
+        if closePos != None:
+            openPos = findOpen(line, closePos - 1)
+
+    return (openPos, closePos) if openPos != None and closePos != None else None
 
 def determineElements(line, openClose):
     """
