@@ -9,7 +9,6 @@ def fixBdeBlock():
     row, col = vim.current.window.cursor
 
     startRow = endRow = row - 1
-    col -= 1
     text = buf[startRow]
 
     while not bdeutil.findOpen(text, col) and endRow - startRow < 20:
