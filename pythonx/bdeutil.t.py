@@ -270,9 +270,6 @@ class TestDriver(unittest.TestCase):
             ""])
 
     def test_fixBdeBlock(self):
-        f = bdeutil.fixBdeBlock
-        A = self.assertEqual
-
         # Special characters
         # '@' - position to start search.  If multiple are present, the
         #       function is called multiple times, once for each '@'

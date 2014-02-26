@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 bdeutil.py: Utility functions for formatting C++ according to BDE standard.
 
@@ -487,3 +485,11 @@ def fixBdeBlock(text, pos, width, minCommentWidth):
     # TODO call writeComments
 
     return preLines + [x[0] for x in multilineRet[0]] + postLines
+
+def fixBdeData(text, width, minCommentWidth):
+    """
+    Fix the BDE data section in the specified 'text' according to the
+    specified 'width' and 'minCommentWidth', and return a list of lines
+    consisting of the fixed text, or 'None' if there was a problem parsing the
+    data definitions.
+    """
