@@ -132,14 +132,14 @@ def findOpenClose(line, pos):
 
 def determineElements(line, openClose):
     """
-    Return a list containing the comma separated elements within the
+    Return a list containing the comma/semicolon separated elements within the
     specified 'openClose'. Any comment following an element is assumed to be a
     part of the element.
     """
     elements = []
     startPos = openClose[0] + 1
     while startPos < openClose[1]:
-        endPos = findSkippingGroups(line, startPos, ",", 1)
+        endPos = findSkippingGroups(line, startPos, ",;", 1)
         if endPos == -1 or endPos >= openClose[1]:
             endPos = openClose[1]
 
@@ -486,6 +486,7 @@ def fixBdeBlock(text, pos, width, minCommentWidth):
 
     return preLines + [x[0] for x in multilineRet[0]] + postLines
 
+
 def fixBdeData(text, width, minCommentWidth):
     """
     Fix the BDE data section in the specified 'text' according to the
@@ -493,3 +494,11 @@ def fixBdeData(text, width, minCommentWidth):
     consisting of the fixed text, or 'None' if there was a problem parsing the
     data definitions.
     """
+    openClose = (0, len(text))
+    elements = [parseElement(e) for e in determineElements(text, openClose)]
+
+    multilineRet = writeBdeGroupMultiline(elements, width, "", "")
+
+    # TODO call writeComments
+
+    return [x[0] for x in multilineRet[0]]
