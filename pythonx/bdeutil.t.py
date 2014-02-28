@@ -103,6 +103,11 @@ class TestDriver(unittest.TestCase):
         T("""#(|int a, // some arg|
                |void *c, // another arg|
                |something& else#)|;""")
+        T("""#
+            |int d_a; // something|
+            |double d_b; // something else|
+            |char *d_c; // last thing| 
+          #""")
 
     def test_parseElement(self):
         f = bdeutil.parseElement
@@ -287,40 +292,19 @@ class TestDriver(unittest.TestCase):
     void       *d_void;       // last line
           """)
 
+        T("""
+    int         d_Xfoo;|a simple Mvariable             W
+    const char *d_name;|a longer var with a long comment
+    double      d_noComment;|
+    void       *d_void;|last line
+          """, """
+    int         d_foo;        // a simple variable
+    const char *d_name;       // a longer var with a
+                              // long comment
+    double      d_noComment;
+    void       *d_void;       // last line
+          """, False)
 
-        f = bdeutil.writeComments
-        A = self.assertEqual
-
-
-#       linesAndComments = [
-#           ("int         d_foo;", "a simple variable"),
-#           ("const char *d_name;", "a longer var with a long comment"),
-#           ("double      d_noComment;", ""),
-#           ("void       *d_void;", "last line")]
-
-#       A(f(linesAndComments, 40, 65, 79, True), [
-#           "int         d_foo;       // a simple variable",
-#           "const char *d_name;      // a longer var with a long comment",
-#           "double      d_noComment;",
-#           "void       *d_void;      // last line"])
-
-#       A(f(linesAndComments, 20, 50, 60, False), [
-#           "int         d_foo;       // a simple variable",
-#           "const char *d_name;      // a longer var with a long",
-#           "                         // comment",
-#           "double      d_noComment;",
-#           "void       *d_void;      // last line"])
-
-#       A(f(linesAndComments, 20, 50, 60, True), [
-#           "int         d_foo;       // a simple variable",
-#           "",
-#           "const char *d_name;      // a longer var with a long",
-#           "                         // comment",
-#           "",
-#           "double      d_noComment;",
-#           "",
-#           "void       *d_void;      // last line",
-#           ""])
 
     def test_fixBdeBlock(self):
         # Special characters
