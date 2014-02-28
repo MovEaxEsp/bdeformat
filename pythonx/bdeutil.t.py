@@ -250,7 +250,7 @@ class TestDriver(unittest.TestCase):
             lines[0] = lines[0].translate(None, "WMX").rstrip()
             linesAndComments = [tuple(line.split("|")) for line in lines]
 
-            expected = filter(lambda s: len(s.strip()), outS.split("\n"))
+            expected = outS.split("\n")[1:-1]
             ret = bdeutil.writeComments(linesAndComments,
                                         minCommentWidth,
                                         maxWidth,
@@ -263,12 +263,30 @@ class TestDriver(unittest.TestCase):
     int         d_Xfoo;|a simple Mvariable                            W
     const char *d_name;|a longer var with a long comment
     double      d_noComment;|
-    void       *d_void;|last line""",
-          """
+    void       *d_void;|last line
+          """, """
     int         d_foo;        // a simple variable
     const char *d_name;       // a longer var with a long comment
     double      d_noComment;
-    void       *d_void;       // last line""")
+    void       *d_void;       // last line
+          """)
+
+        T("""
+    int         d_Xfoo;|a simple Mvariable             W
+    const char *d_name;|a longer var with a long comment
+    double      d_noComment;|
+    void       *d_void;|last line
+          """, """
+    int         d_foo;        // a simple variable
+
+    const char *d_name;       // a longer var with a
+                              // long comment
+
+    double      d_noComment;
+
+    void       *d_void;       // last line
+          """)
+
 
         f = bdeutil.writeComments
         A = self.assertEqual

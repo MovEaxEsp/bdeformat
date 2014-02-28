@@ -430,14 +430,14 @@ def writeComments(linesAndComments,
         # - 2 because there are 2 spaces before the comment starts
         possibleWidths.add(lineWidth - len(lineAndComment[0]) - 2)
 
+    # +3 is for '// '
+    maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) + 3
+
     best = []
     for commentWidth in possibleWidths:
-        commentPos = lineWidth - possibleWidth
+        commentPos = lineWidth - commentWidth
 
-        # +3 is for '// '
-        maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) +
-                          3
-        haveMultiline = (maxCommentWidth > commentWidth)
+        haveMultiline = maxCommentWidth + maxContentWidth > lineWidth
 
         result = []
         commentPrefix = ' ' * commentPos
@@ -445,9 +445,9 @@ def writeComments(linesAndComments,
             commentLines = splitCommentIntoLines(comment, commentWidth - 3)
 
             contentWidth = len(line) + 2
-            if not commentLines or (contentWidth + commentWidth) > lineWidth:
-                # Write 'line' on its own line and put the comment on a separate
-                # line, if there is a comment
+            if not commentLines or commentPos <= contentWidth:
+                # Write 'line' on its own line and put the comment on a
+                # separate line, if there is a comment
                 result.append(line)
             else:
                 # Write first line of comment along with 'line
