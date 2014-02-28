@@ -236,38 +236,73 @@ class TestDriver(unittest.TestCase):
             "a test"])
 
     def test_writeComments(self):
+        # Special characters
+        # 'W' - position indicates max line width
+        # 'M' - distance from W specifies the minCommentWidth
+        # 'X' - distance from W specifies the max comment width
+        # These should appear on the first line of the input only
+        def T(inS, outS, spaceIfMultiline = True):
+            lines = filter(lambda s: len(s.strip()), inS.split("\n"))
+            lineWidth = lines[0].find("W")
+            self.assertTrue(lineWidth != -1)
+            minCommentWidth = lineWidth - lines[0].find("M")
+            maxWidth = lineWidth - lines[0].find("X")
+            lines[0] = lines[0].translate(None, "WMX").rstrip()
+            linesAndComments = [tuple(line.split("|")) for line in lines]
+
+            expected = filter(lambda s: len(s.strip()), outS.split("\n"))
+            ret = bdeutil.writeComments(linesAndComments,
+                                        minCommentWidth,
+                                        maxWidth,
+                                        lineWidth,
+                                        spaceIfMultiline)
+
+            self.assertEqual(ret, expected)
+
+        T("""
+    int         d_Xfoo;|a simple Mvariable                            W
+    const char *d_name;|a longer var with a long comment
+    double      d_noComment;|
+    void       *d_void;|last line""",
+          """
+    int         d_foo;        // a simple variable
+    const char *d_name;       // a longer var with a long comment
+    double      d_noComment;
+    void       *d_void;       // last line""")
+
         f = bdeutil.writeComments
         A = self.assertEqual
 
-        linesAndComments = [
-            ("int         d_foo;", "a simple variable"),
-            ("const char *d_name;", "a longer var with a long comment"),
-            ("double      d_noComment;", ""),
-            ("void       *d_void;", "last line")]
 
-        A(f(linesAndComments, 40, 65, 79, True), [
-            "int         d_foo;       // a simple variable",
-            "const char *d_name;      // a longer var with a long comment",
-            "double      d_noComment;",
-            "void       *d_void;      // last line"])
+#       linesAndComments = [
+#           ("int         d_foo;", "a simple variable"),
+#           ("const char *d_name;", "a longer var with a long comment"),
+#           ("double      d_noComment;", ""),
+#           ("void       *d_void;", "last line")]
 
-        A(f(linesAndComments, 20, 50, 60, False), [
-            "int         d_foo;       // a simple variable",
-            "const char *d_name;      // a longer var with a long",
-            "                         // comment",
-            "double      d_noComment;",
-            "void       *d_void;      // last line"])
+#       A(f(linesAndComments, 40, 65, 79, True), [
+#           "int         d_foo;       // a simple variable",
+#           "const char *d_name;      // a longer var with a long comment",
+#           "double      d_noComment;",
+#           "void       *d_void;      // last line"])
 
-        A(f(linesAndComments, 20, 50, 60, True), [
-            "int         d_foo;       // a simple variable",
-            "",
-            "const char *d_name;      // a longer var with a long",
-            "                         // comment",
-            "",
-            "double      d_noComment;",
-            "",
-            "void       *d_void;      // last line",
-            ""])
+#       A(f(linesAndComments, 20, 50, 60, False), [
+#           "int         d_foo;       // a simple variable",
+#           "const char *d_name;      // a longer var with a long",
+#           "                         // comment",
+#           "double      d_noComment;",
+#           "void       *d_void;      // last line"])
+
+#       A(f(linesAndComments, 20, 50, 60, True), [
+#           "int         d_foo;       // a simple variable",
+#           "",
+#           "const char *d_name;      // a longer var with a long",
+#           "                         // comment",
+#           "",
+#           "double      d_noComment;",
+#           "",
+#           "void       *d_void;      // last line",
+#           ""])
 
     def test_fixBdeBlock(self):
         # Special characters

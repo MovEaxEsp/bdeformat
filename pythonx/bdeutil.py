@@ -155,7 +155,8 @@ def determineElements(line, openClose):
 
         startPos = endPos + 1
 
-        elements.append(element)
+        if len(element) > 0:
+            elements.append(element)
 
     return elements
 
@@ -414,43 +415,59 @@ def writeComments(linesAndComments,
     if any <line>, <comment> pair ends up spanning multiple lines
     """
 
+
     # + 2 because there are 2 spaces before the comment starts
     maxContentWidth = reduce(max, [len(x[0]) for x in linesAndComments]) + 2
     remainingSpaceOnLine = lineWidth - maxContentWidth
-    if remainingSpaceOnLine >= minCommentWidth:
-        commentWidth = remainingSpaceOnLine
-    else:
-        commentWidth = maxWidth
 
-    commentPos = lineWidth - commentWidth
+    # Figure out the comment width that will result in the fewest lines being
+    # generated.  The possible widths can be the remaining space in any line
+    # or simply maxWidth
 
-    # +3 is for '// '
-    maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) + 3
-    haveMultiline = (maxCommentWidth > commentWidth)
+    possibleWidths = set()
+    possibleWidths.add(maxWidth)
+    for lineAndComment in linesAndComments:
+        # - 2 because there are 2 spaces before the comment starts
+        possibleWidths.add(lineWidth - len(lineAndComment[0]) - 2)
 
-    ret = []
-    commentPrefix = ' ' * (commentPos - 1)
-    for line, comment in linesAndComments:
-        commentLines = splitCommentIntoLines(comment, commentWidth - 3)
+    best = []
+    for commentWidth in possibleWidths:
+        commentPos = lineWidth - possibleWidth
 
-        contentWidth = len(line) + 2
-        if not commentLines or (contentWidth + commentWidth) > lineWidth:
-            # Write 'line' on its own line and put the comment on a separate
-            # line, if there is a comment
-            ret.append(line)
-        else:
-            # Write first line of comment along with 'line
-            ret.append(line.ljust(commentPos - 1) + "// " + commentLines[0])
-            commentLines = commentLines[1:]
+        # +3 is for '// '
+        maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) +
+                          3
+        haveMultiline = (maxCommentWidth > commentWidth)
+
+        result = []
+        commentPrefix = ' ' * commentPos
+        for line, comment in linesAndComments:
+            commentLines = splitCommentIntoLines(comment, commentWidth - 3)
+
+            contentWidth = len(line) + 2
+            if not commentLines or (contentWidth + commentWidth) > lineWidth:
+                # Write 'line' on its own line and put the comment on a separate
+                # line, if there is a comment
+                result.append(line)
+            else:
+                # Write first line of comment along with 'line
+                result.append(line.ljust(commentPos) + "// " + commentLines[0])
+                commentLines = commentLines[1:]
 
 
-        for commentLine in commentLines:
-            ret.append(commentPrefix + "// " + commentLine)
+            for commentLine in commentLines:
+                result.append(commentPrefix + "// " + commentLine)
 
-        if haveMultiline and spaceIfMultiline:
-            ret.append("")
+            if haveMultiline and spaceIfMultiline:
+                result.append("")
 
-    return ret
+        while result[-1] == "":
+            result = result[:-1]
+
+        if len(best) == 0 or len(best) > len(result):
+            best = result
+
+    return best
 
 
 def fixBdeBlock(text, pos, width, minCommentWidth):
@@ -497,8 +514,20 @@ def fixBdeData(text, width, minCommentWidth):
     openClose = (0, len(text))
     elements = [parseElement(e) for e in determineElements(text, openClose)]
 
-    multilineRet = writeBdeGroupMultiline(elements, width, "", "")
+    prefix = " " * (len(text) - len(text.lstrip()))
+    multilineRet = writeBdeGroupMultiline(elements, width, prefix, "")
 
-    # TODO call writeComments
+    namePos = multilineRet[1]
+    maxCommentWidth = width - namePos - 2
 
-    return [x[0] for x in multilineRet[0]]
+    ret = writeComments(multilineRet[0],
+                        minCommentWidth,
+                        maxCommentWidth,
+                        width,
+                        True)
+
+    # Add a newline after the last line to separate this section from the next
+    # one
+    ret.append("")
+
+    return ret

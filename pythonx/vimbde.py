@@ -29,6 +29,8 @@ def _fixBdeBlockImp():
         if sectionType == None:
             text = buf[startRow] + "\n" + text
             col += len(buf[startRow]) + 1
+        else:
+            startRow += 1
 
     if sectionType == None:
         # We found the start of a group
@@ -41,8 +43,11 @@ def _fixBdeBlockImp():
         # We found the start of a section
         endRow += 1
         while SectionType.check(buf[endRow]) == None:
+            text = text + "\n" + buf[endRow]
             endRow += 1
             _checkSectionSize(startRow, endRow)
+
+        endRow -= 1
 
     if sectionType == SectionType.DATA:
         fixedBlock = bdeutil.fixBdeData(text, 79, 40)
