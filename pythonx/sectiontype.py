@@ -45,7 +45,8 @@ class SectionType:
         "private:"                : PRIVATE,
         "// NOT IMPLEMENTED"      : OTHER,
         "// TYPES"                : OTHER,
-        "// PRIVATE TYPES"        : OTHER
+        "// PRIVATE TYPES"        : OTHER,
+        "// FRIENDS"              : OTHER
     }
 
     @staticmethod
