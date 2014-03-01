@@ -82,7 +82,6 @@ class TestDriver(unittest.TestCase):
             openClose = (openPos, noPipe.find("#", openPos + 1) - 1)
 
             rawS = s.translate(None, "#|")
-            ret = bdeutil.determineElements(rawS, openClose)
             expected = []
 
             noHash = s.translate(None, "#")
@@ -106,8 +105,8 @@ class TestDriver(unittest.TestCase):
         T("""#
             |int d_a; // something|
             |double d_b; // something else|
-            |char *d_c; // last thing| 
-          #""")
+            |char *d_c; // last thing|#
+          """)
 
     def test_parseElement(self):
         f = bdeutil.parseElement
@@ -314,9 +313,17 @@ class TestDriver(unittest.TestCase):
         #       to the function.  If this isn't present, '79' is assumed.
         # 'C' - the distance from this to 'W' specifies the comment width.  If
         #       this isn't present, '40' is assumed
-        def T(inS, outS, width=79, commentWidth=40):
-            wPos = inS.find("W")
-            if wPos != -1:
+        def T(inS, outS = None, width=79, commentWidth=40):
+            inS = "\n".join(inS.split("\n")[1:-1])
+
+            if outS == None:
+                outS = inS.translate(None, "@WC")
+                outS = "\n".join(map(lambda s: s.rstrip(), outS.split("\n")))
+            else:
+                outS = "\n".join(outS.split("\n")[1:-1])
+
+            wPos = inS.find("W") + 1
+            if wPos != 0:
                 width = wPos
 
             cPos = inS.find("C")
@@ -384,16 +391,18 @@ class TestDriver(unittest.TestCase):
                     bslma::Allocator *a = 0) = 0;
           """)
 
-        # TODO test
-    #bdema_ManagedPtr<dmpit::PublisherRequest> req(
-                                          #new (*alloc) PublisherRequest(alloc),
-                                          #alloc);
+        T("""
+    bdema_ManagedPtr<dmpit::PublisherRequest> req(
+                                          new (*alloc) PublisherRequest(alloc),
+                                          @alloc);
+          """);
 
-    # TODO test
-                #ret = bdeutil.fixBdeBlock(     in.translate(None, "@"),
-                                          #atPos - numAt,
-                                                  #width,
-                                                  #commentWidth)
+        T("""
+                ret = bdeutil.fixBdeBlock(in.@translate(None, 'o'),
+                                          atPos - numAt,
+                                          width,
+                                          commentwidth)
+          """)
 
 # Test functions in 'bdeutil
 if __name__ == "__main__":

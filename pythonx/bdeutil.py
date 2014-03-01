@@ -149,6 +149,8 @@ def determineElements(line, openClose):
             # end of the previous element
 
             commentEndPos = element.find('\n')
+            if commentEndPos == -1:
+                commentEndPos = openClose[1]
             elements[len(elements)-1] += " " + element[0:commentEndPos].strip()
 
             element = element[commentEndPos + 1:].strip()
@@ -176,7 +178,13 @@ def parseElement(element):
     Note:
     For references, the '&' is part of the type if there is a type and the
     'name' if there isn't.  If the 'element' couldn't be parsed, a ValueError
-    is raised
+    is raised.
+
+    Note that this function isn't perfect, and will parse certain 'value'
+    constructs, such as 'a - b' or 'const char *' for example, as having both
+    a type and value.  However, it should be able to correctly parse any
+    element that does have a type and value.  Use 'fixParsedElements' below to
+    make a group of parsed elements consistent in this regard.
     """
     endPos = findSkippingGroups(element, 0, ",;)}>]", 1)
     if endPos == -1:
@@ -239,6 +247,33 @@ def parseElement(element):
     commentStr = commentStr.strip()
 
     return (typeStr, starsStr, nameStr, valueStr, endChar, commentStr)
+
+def fixParsedElements(parsedElements):
+    """
+    'parseElements' isn't perfect and will occasionally flag what should
+    be just a value or just a type as having both.  This function will attempt
+    to make the specified 'parsedElements' (obtained from multiple calls to
+    'parseElement') consistent by putting all types and values into the
+    'value' field of the element if any of the parsed elements is missing a
+    type or value.  It returns the fixed (or unmodified) elements.
+    """
+
+    needFix = False
+    for elem in parsedElements:
+        if len(elem[0]) == 0 or len(elem[2]) == 0:
+            needFix = True
+            break
+
+    if needFix:
+        ret = []
+        for elem in parsedElements:
+            newName = " ".join(filter(len, [elem[0], elem[1] + elem[2]]))
+            ret.append(("", "", newName, elem[3], elem[4], elem[5]))
+
+        return ret
+    else:
+        return parsedElements
+
 
 def alignElementParts(parsedElements):
     """
@@ -482,6 +517,7 @@ def fixBdeBlock(text, pos, width, minCommentWidth):
         return None
 
     elements = [parseElement(e) for e in determineElements(text, openClose)]
+    elements = fixParsedElements(elements);
 
     preLines = text[:openClose[0] + 1].splitlines()
     postLines = text[openClose[1] + 1:].splitlines()
@@ -513,6 +549,7 @@ def fixBdeData(text, width, minCommentWidth):
     """
     openClose = (0, len(text))
     elements = [parseElement(e) for e in determineElements(text, openClose)]
+    elements = fixParsedElements(elements);
 
     prefix = " " * (len(text) - len(text.lstrip()))
     multilineRet = writeBdeGroupMultiline(elements, width, prefix, "")
