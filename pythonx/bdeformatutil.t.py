@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
 import unittest
-import bdeutil
+import bdeformatutil
 
 class TestDriver(unittest.TestCase):
 
     def test_findNextOccurrence(self):
-        f = lambda s, c, d: bdeutil.findNextOccurrence(s.replace("@", ""),
-                                                       s.find("@"),
-                                                       c,
-                                                       d)
+        f = lambda s, c, d: bdeformatutil.findNextOccurrence(
+                                                            s.replace("@", ""),
+                                                            s.find("@"),
+                                                            c,
+                                                            d)
         A = self.assertEqual
 
         # Use '@' to indicate the position of the start of the search, and '#'
@@ -32,10 +33,11 @@ class TestDriver(unittest.TestCase):
         T("abc@#d", "d", -1)
 
     def test_findSkippingGroups(self):
-        f = lambda s, c, d: bdeutil.findSkippingGroups(s.replace("@", ""),
-                                                       s.find("@"),
-                                                       c,
-                                                       d)
+        f = lambda s, c, d: bdeformatutil.findSkippingGroups(
+                                                            s.replace("@", ""),
+                                                            s.find("@"),
+                                                            c,
+                                                            d)
         A = self.assertEqual
 
         # Use '@' to indicate the position of the start of the search, and '#'
@@ -61,7 +63,7 @@ class TestDriver(unittest.TestCase):
             if expected == (-1, -2):
                 expected = None
 
-            self.assertEqual(bdeutil.findOpenClose(
+            self.assertEqual(bdeformatutil.findOpenClose(
                                              s.translate(None, "@#"),
                                              s.translate(None, "#").find("@")),
                              expected)
@@ -93,7 +95,7 @@ class TestDriver(unittest.TestCase):
                 pipe1Pos = noHash.find("|", pipe2Pos + 1)
                 pipe2Pos = noHash.find("|", pipe1Pos + 1)
 
-            self.assertEqual(bdeutil.determineElements(rawS, openClose),
+            self.assertEqual(bdeformatutil.determineElements(rawS, openClose),
                              expected)
 
         T("#(|int a,| |int b#)|")
@@ -109,9 +111,6 @@ class TestDriver(unittest.TestCase):
           """)
 
     def test_parseElement(self):
-        f = bdeutil.parseElement
-        A = self.assertEqual
-
         def T(s):
             expected = []
             prevPipePos = s.find("|")
@@ -121,8 +120,9 @@ class TestDriver(unittest.TestCase):
                 prevPipePos = pipePos
                 pipePos = s.find("|", pipePos + 1)
 
-            self.assertEqual(bdeutil.parseElement(s.translate(None, "|")),
-                                                  tuple(expected))
+            self.assertEqual(bdeformatutil.parseElement(
+                                                       s.translate(None, "|")),
+                                                       tuple(expected))
 
         T("|int|| a||;||")
         T("  |const int|| a||;||")
@@ -140,8 +140,8 @@ class TestDriver(unittest.TestCase):
         # 'alignElementParts', and then joins each element of the returned
         # list back with "|"
         f = lambda x: ["|".join(a) for a in
-                        bdeutil.alignElementParts(
-                                         [bdeutil.parseElement(
+                        bdeformatutil.alignElementParts(
+                                         [bdeformatutil.parseElement(
                                            e.replace("|", "   ")) for e in x])]
         A = self.assertEqual
 
@@ -159,9 +159,9 @@ class TestDriver(unittest.TestCase):
         A(f(l), l)
 
     def test_writeAlignedElements(self):
-        f = lambda x: bdeutil.writeAlignedElements(
-                        bdeutil.alignElementParts(
-                                         [bdeutil.parseElement(e) for e in x]))
+        f = lambda x: bdeformatutil.writeAlignedElements(
+                        bdeformatutil.alignElementParts(
+                                   [bdeformatutil.parseElement(e) for e in x]))
         A = self.assertEqual
 
         l = ["int            a;",
@@ -177,8 +177,8 @@ class TestDriver(unittest.TestCase):
         A(f(l), ([(x, "") for x in l], 0))
 
     def test_tryWriteBdeGroupOneLine(self):
-        f =  lambda x, w: bdeutil.tryWriteBdeGroupOneLine(
-                                       [bdeutil.parseElement(e) for e in x], w)
+        f =  lambda x, w: bdeformatutil.tryWriteBdeGroupOneLine(
+                                 [bdeformatutil.parseElement(e) for e in x], w)
         A = self.assertEqual
 
         l = ["int     a,", "char    *b,", "some other type x)"]
@@ -189,8 +189,8 @@ class TestDriver(unittest.TestCase):
         A(f(l, len(s) - 1), None)
 
     def test_writeBdeGroupMultiline(self):
-        f =  lambda x, w, p, s: bdeutil.writeBdeGroupMultiline(
-                                  [bdeutil.parseElement(e) for e in x], w, p,s)
+        f =  lambda x, w, p, s: bdeformatutil.writeBdeGroupMultiline(
+                            [bdeformatutil.parseElement(e) for e in x], w, p,s)
         A = self.assertEqual
 
         l = ["int a,",
@@ -211,7 +211,7 @@ class TestDriver(unittest.TestCase):
         A(f(l, 40, "foobarbazzzzzz(", ";"), ([(x, "") for x in out], 24))
 
     def test_splitCommentIntoLines(self):
-        f = bdeutil.splitCommentIntoLines
+        f = bdeformatutil.splitCommentIntoLines
         A = self.assertEqual
 
         s = "some decently long string for a test"
@@ -255,11 +255,11 @@ class TestDriver(unittest.TestCase):
             linesAndComments = [tuple(line.split("|")) for line in lines]
 
             expected = outS.split("\n")[1:-1]
-            ret = bdeutil.writeComments(linesAndComments,
-                                        minCommentWidth,
-                                        maxWidth,
-                                        lineWidth,
-                                        spaceIfMultiline)
+            ret = bdeformatutil.writeComments(linesAndComments,
+                                              minCommentWidth,
+                                              maxWidth,
+                                              lineWidth,
+                                              spaceIfMultiline)
 
             self.assertEqual(ret, expected)
 
@@ -338,10 +338,10 @@ class TestDriver(unittest.TestCase):
             atPos = inS.find("@")
             self.assertNotEqual(atPos, -1)
             while atPos != -1:
-                ret = bdeutil.fixBdeBlock(inS.translate(None, "@"),
-                                          atPos - numAt,
-                                          width,
-                                          commentWidth)
+                ret = bdeformatutil.fixBdeBlock(inS.translate(None, "@"),
+                                                atPos - numAt,
+                                                width,
+                                                commentWidth)
 
                 atPos = inS.find("@", atPos + 1)
                 numAt += 1
@@ -398,12 +398,12 @@ class TestDriver(unittest.TestCase):
           """);
 
         T("""
-                ret = bdeutil.fixBdeBlock(in.@translate(None, 'o'),
-                                          atPos - numAt,
-                                          width,
-                                          commentwidth)
+                ret = bdeformatutil.fixBdeBlock(in.@translate(None, 'o'),
+                                                atPos - numAt,
+                                                width,
+                                                commentwidth)
           """)
 
-# Test functions in 'bdeutil
+# Test functions in 'bdeformatutil'
 if __name__ == "__main__":
     unittest.main();
