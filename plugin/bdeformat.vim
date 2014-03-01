@@ -1,3 +1,3 @@
-py from vimbde import fixBdeBlock
+py from bdeformatvimadapter import formatBde
 
-command! BDEFormat :py fixBdeBlock()
+command! BDEFormat :py formatBde()
