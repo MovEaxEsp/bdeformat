@@ -261,6 +261,10 @@ class TestDriver(unittest.TestCase):
                                               lineWidth,
                                               spaceIfMultiline)
 
+            if (ret != expected):
+                print "BAD RETURN:"
+                print "\n".join(ret)
+
             self.assertEqual(ret, expected)
 
         T("""
@@ -304,6 +308,29 @@ class TestDriver(unittest.TestCase):
     void       *d_void;       // last line
           """, False)
 
+        T("""
+    int         d_Xa;|                  W
+    const char *d_m;|
+    void       *d_v;|
+          """, """
+    int         d_a;
+    const char *d_m;
+    void       *d_v;
+          """)
+
+        T("""
+    int foo(int               a,|arg 1                     W
+            char             *c,|next arg
+            bslma::Allocator *basicAllocator,|allocator
+            void             *last = 0)|
+          """, """
+    int foo(int               a,               // arg 1
+            char             *c,               // next arg
+            bslma::Allocator *basicAllocator,  // allocator
+            void             *last = 0)
+          """, False)
+
+
 
     def test_fixBdeBlock(self):
         # Special characters
@@ -345,6 +372,10 @@ class TestDriver(unittest.TestCase):
 
                 atPos = inS.find("@", atPos + 1)
                 numAt += 1
+
+                if ret != expected:
+                    print "BAD RETURN:"
+                    print "\n".join(ret)
 
                 self.assertEqual(ret, expected)
 
@@ -403,6 +434,19 @@ class TestDriver(unittest.TestCase):
                                                 width,
                                                 commentwidth)
           """)
+
+        T("""
+    int foo(int a, //arg 1@
+            char *c, // next arg
+            bslma::Allocator *basicAllocator, // allocator
+            void *last = 0);
+          """, """
+    int foo(int               a,               // arg 1
+            char             *c,               // next arg
+            bslma::Allocator *basicAllocator,  // allocator
+            void             *last = 0);
+          """)
+
 
 # Test functions in 'bdeformatutil'
 if __name__ == "__main__":

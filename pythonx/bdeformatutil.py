@@ -457,7 +457,6 @@ def writeComments(linesAndComments,
     if any <line>, <comment> pair ends up spanning multiple lines
     """
 
-
     # + 2 because there are 2 spaces before the comment starts
     maxContentWidth = reduce(max, [len(x[0]) for x in linesAndComments]) + 2
     remainingSpaceOnLine = lineWidth - maxContentWidth
@@ -470,7 +469,9 @@ def writeComments(linesAndComments,
     possibleWidths.add(maxWidth)
     for lineAndComment in linesAndComments:
         # - 2 because there are 2 spaces before the comment starts
-        possibleWidths.add(lineWidth - len(lineAndComment[0]) - 2)
+        pWidth = lineWidth - len(lineAndComment[0]) - 2
+        if pWidth <= maxWidth and pWidth > 0:
+            possibleWidths.add(pWidth)
 
     # +3 is for '// '
     maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) + 3
@@ -487,7 +488,7 @@ def writeComments(linesAndComments,
             commentLines = splitCommentIntoLines(comment, commentWidth - 3)
 
             contentWidth = len(line) + 2
-            if not commentLines or commentPos <= contentWidth:
+            if not commentLines or commentPos < contentWidth:
                 # Write 'line' on its own line and put the comment on a
                 # separate line, if there is a comment
                 result.append(line)
@@ -542,9 +543,16 @@ def fixBdeBlock(text, pos, width, minCommentWidth):
 
     multilineRet = writeBdeGroupMultiline(elements, width, prefix, suffix)
 
-    # TODO call writeComments
+    namePos = multilineRet[1]
+    maxCommentWidth = width - namePos - 2
 
-    return preLines + [x[0] for x in multilineRet[0]] + postLines
+    ret = writeComments(multilineRet[0],
+                        minCommentWidth,
+                        maxCommentWidth,
+                        width,
+                        False)
+
+    return preLines + ret + postLines
 
 
 def fixBdeData(text, width, minCommentWidth):
