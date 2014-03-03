@@ -40,15 +40,12 @@ def findNextOccurrence(line, pos, chars, direction):
     found
     """
 
-    if pos >= len(line):
-        raise ValueError("len(" + line + ") == " + str(len(line)) +
-                ", pos: " + str(pos))
-
-    end = -1 if direction < 0 else len(line)
-    for i in range(pos, end, direction):
-        for c in chars:
-            if line[i] == c:
-                return i
+    if pos < len(line):
+        end = -1 if direction < 0 else len(line)
+        for i in range(pos, end, direction):
+            for c in chars:
+                if line[i] == c:
+                    return i
 
     return -1
 
@@ -473,12 +470,16 @@ def writeComments(linesAndComments,
         if pWidth <= maxWidth and pWidth > 0:
             possibleWidths.add(pWidth)
 
-    # +3 is for '// '
-    maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments]) + 3
+    maxCommentWidth = reduce(max, [len(x[1]) for x in linesAndComments])
+    if maxCommentWidth > 0:
+        # +3 is for '// '
+        maxCommentWidth += 3
 
     best = []
     for commentWidth in possibleWidths:
         commentPos = lineWidth - commentWidth
+        if commentWidth <= 3:
+            continue
 
         haveMultiline = maxCommentWidth + maxContentWidth > lineWidth
 

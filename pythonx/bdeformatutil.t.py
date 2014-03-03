@@ -376,6 +376,8 @@ class TestDriver(unittest.TestCase):
                 if ret != expected:
                     print "BAD RETURN:"
                     print "\n".join(ret)
+                    print "EXPECTED:"
+                    print "\n".join(expected)
 
                 self.assertEqual(ret, expected)
 
@@ -445,6 +447,22 @@ class TestDriver(unittest.TestCase):
             char             *c,               // next arg
             bslma::Allocator *basicAllocator,  // allocator
             void             *last = 0);
+          """)
+
+        T("""
+    ITERMSubscriberManagerImp(
+               bcema_BlobBufferFactory                    *@factory,
+               ITERMPaintProxy                            *proxy,
+               MessageEncoder                             *encoder,
+               dmpu::ThreadUtil                           *threadUtil,
+               dmpip::Statcollector                       *statcollector,
+               dmpip::Statcollector2                      *statcollector2,
+               dmpip::RequestTracer                       *requestTracer,
+               int                                         heartbeatwarningSec,
+               bool                                        checkInvalidLuws,
+               const Mappingclearedcb&                     mappingclearedcb,
+               bcema_SharedPtr<ITERMSubscriberManagerImp> *selfSP,
+               bslma_Allocator                            *allocator = 0);
           """)
 
 
