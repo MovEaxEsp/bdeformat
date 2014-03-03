@@ -40,6 +40,10 @@ def findNextOccurrence(line, pos, chars, direction):
     found
     """
 
+    if pos >= len(line):
+        raise ValueError("len(" + line + ") == " + str(len(line)) +
+                ", pos: " + str(pos))
+
     end = -1 if direction < 0 else len(line)
     for i in range(pos, end, direction):
         for c in chars:
