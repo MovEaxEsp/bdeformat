@@ -598,7 +598,7 @@ def formatBde(lineSource, row, col):
     text = lineSource(startRow)
 
     def checkSectionSize(startRow, endRow):
-        if endRow - startRow >= 50:
+        if endRow - startRow >= 300:
             raise ValueError("Can't find group/section")
 
     # Find start of group/section
