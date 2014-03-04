@@ -511,6 +511,9 @@ def writeComments(linesAndComments,
         if len(best) == 0 or len(best) > len(result):
             best = result
 
+    if len(best) == 0:
+        best = [x[0] for x in linesAndComments]
+
     return best
 
 

@@ -465,6 +465,12 @@ class TestDriver(unittest.TestCase):
                bslma_Allocator                            *allocator = 0);
           """)
 
+        T("""
+    void jshjdjahdjasdjkhjfahsjkhafjweushjkhvcnxbdghfuiasysdjksbvjshfjhdf(
+                                                                int         a@,
+                                                                const char *c,
+                                                                bool        b);
+          """);
 
 # Test functions in 'bdeformatutil'
 if __name__ == "__main__":
