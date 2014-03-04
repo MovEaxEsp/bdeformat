@@ -30,6 +30,8 @@ As well as variations on these such as template parameter lists and POD
 initialization lists
 """
 
+import re
+
 from sectiontype import SectionType
 
 def findNextOccurrence(line, pos, chars, direction):
@@ -148,13 +150,17 @@ def determineElements(line, openClose):
             endPos = openClose[1]
 
         element = line[startPos:endPos + 1].strip()
+        print element
         if len(element) >= 2 and element[0] == '/' and element[1] == '/':
             # This 'element' starts with a comment.  Append the comment to the
             # end of the previous element
 
-            commentEndPos = element.find('\n')
+            commentEndPos = element.rfind('\n')
             if commentEndPos == -1:
                 commentEndPos = openClose[1]
+            else:
+                if # TODO finish we have the indexof the last \n in the
+                   # element. See if the line after it is also a comment
             elements[len(elements)-1] += " " + element[0:commentEndPos].strip()
 
             element = element[commentEndPos + 1:].strip()
@@ -247,8 +253,11 @@ def parseElement(element):
 
     endChar = element[endPos]
 
+    whitespaceRegex = re.compile(r'\W+')
+
     commentStr = element[endPos  + 1:].replace("//", "").replace("\n", " ")
     commentStr = commentStr.strip()
+    commentStr = whitespaceRegex.sub(" ", commentStr)
 
     return (typeStr, starsStr, nameStr, valueStr, endChar, commentStr)
 
@@ -386,11 +395,10 @@ def writeBdeGroupMultiline(parsedElements, width, prefix, suffix):
 
     # We need to figure out if we can write the first element on the same line
     # as the prefix or not
-    maxWrittenElemWidth = reduce(max, [len(x) for x in writtenElements])
+    maxLineLen = reduce(max, [len(x) for x in writtenElements])
 
-    maxLineLen = max(maxWrittenElemWidth,
-                     len(writtenElements[-1]) + len(suffix))
-
+    if len(comments[-1]) == 0:
+        maxLineLen = max(maxLineLen, len(writtenElements[-1]) + len(suffix))
 
     ret = []
     if len(prefix) + maxLineLen > width:
@@ -407,7 +415,14 @@ def writeBdeGroupMultiline(parsedElements, width, prefix, suffix):
     for elem, comment in zip(writtenElements, comments):
         ret.append((elem.rjust(len(elem) + elemStartColumn), comment))
 
-    ret[-1] = (ret[-1][0] + suffix, ret[-1][1])
+    # Add suffix.  If last element has a comment, put the suffix on its own
+    # line
+    if len(suffix) > 0:
+        if len(comments[-1]) > 0:
+            ret.append((suffix.rjust(len(suffix) + elemStartColumn), ""))
+        else:
+            ret[-1] = (ret[-1][0] + suffix, ret[-1][1])
+
     return (ret, writeAlignedElementsRet[1] + elemStartColumn)
 
 def splitCommentIntoLines(comment, maxWidth):

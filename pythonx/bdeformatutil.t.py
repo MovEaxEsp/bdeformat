@@ -110,8 +110,15 @@ class TestDriver(unittest.TestCase):
             |char *d_c; // last thing|#
           """)
 
+        print "TEST"
+        T("""#
+            |int d_a; // something \n // with multi line comment|
+            |double d_b; // something with a short comment|
+            |char *d_c; // last thing \n // with multi line comment|#
+          """)
+
     def test_parseElement(self):
-        def T(s):
+        def T(s, commentStr=""):
             expected = []
             prevPipePos = s.find("|")
             pipePos = s.find("|", prevPipePos + 1)
@@ -119,6 +126,9 @@ class TestDriver(unittest.TestCase):
                 expected.append(s[prevPipePos + 1:pipePos].strip(" /"))
                 prevPipePos = pipePos
                 pipePos = s.find("|", pipePos + 1)
+
+            if len(commentStr) > 0:
+                expected[5] = commentStr
 
             self.assertEqual(bdeformatutil.parseElement(
                                                        s.translate(None, "|")),
@@ -133,6 +143,7 @@ class TestDriver(unittest.TestCase):
         T("|int *&|| d||}||")
         T("|int| *|   e||;||")
         T("|||&a||,||")
+        T("|int|| a||;| // multi line\n // comment|", "multi line comment")
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -471,6 +482,71 @@ class TestDriver(unittest.TestCase):
                                                                 const char *c,
                                                                 bool        b);
           """);
+
+    def test_fixBdeData(self):
+        # Special characters
+        # 'W' - width marker.  The position of this specifies the 'width' arg
+        #       to the function.  If this isn't present, '79' is assumed.
+        # 'C' - the distance from this to 'W' specifies the comment width.  If
+        #       this isn't present, '40' is assumed
+        def T(inS, outS = None, width=79, commentWidth=40):
+            inS = "\n".join(inS.split("\n")[1:-1])
+
+            if outS == None:
+                outS = inS.translate(None, "WC")
+                outS = "\n".join(map(lambda s: s.rstrip(), outS.split("\n")))
+            else:
+                outS = "\n".join(outS.split("\n")[1:-1])
+
+            wPos = inS.find("W") + 1
+            if wPos != 0:
+                width = wPos
+
+            cPos = inS.find("C")
+            if cPos != -1:
+                commentWidth = width - cPos
+
+            inS = inS.translate(None, "CW")
+
+            expected = outS.split("\n")
+
+            ret = bdeformatutil.fixBdeData(inS.translate(None, "@"),
+                                           width,
+                                           commentWidth)
+
+            if ret != expected:
+                print "BAD RETURN:"
+                print "\n".join(ret)
+                print "EXPECTED:"
+                print "\n".join(expected)
+
+            self.assertEqual(ret, expected)
+
+        T("""
+    int d_member1;
+void *d_ptr_p;
+          """, """
+    int   d_member1;
+    void *d_ptr_p;
+
+          """)
+
+        T("""
+                                int              d_a;    // my member
+                                const char      *d_b_p;  // my other member
+                                unsigned int *&  d_c;    // yet another member
+
+          """)
+
+        T("""
+                                int              d_a;    // my member
+
+                                const char      *d_b_p;  // my other member
+
+                                unsigned int *&  d_c;    // yet another awesome
+                                                         // member
+
+          """)
 
 # Test functions in 'bdeformatutil'
 if __name__ == "__main__":
