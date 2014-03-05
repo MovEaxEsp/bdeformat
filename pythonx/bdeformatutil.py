@@ -254,7 +254,7 @@ def parseElement(element):
 
     endChar = element[endPos]
 
-    whitespaceRegex = re.compile(r'\W+')
+    whitespaceRegex = re.compile(r'\s+')
 
     commentStr = element[endPos  + 1:].replace("//", "").replace("\n", " ")
     commentStr = commentStr.strip()

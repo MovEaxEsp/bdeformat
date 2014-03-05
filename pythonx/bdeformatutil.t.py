@@ -116,6 +116,12 @@ class TestDriver(unittest.TestCase):
             |char *d_c; // last thing \n // with multi line comment|#
           """)
 
+        T("""#
+            |int              d_a; // my (member)|
+            |const char      *d_b_p; // my other member|
+            |unsigned int *&  d_c; // yet another member|#
+          """)
+
     def test_parseElement(self):
         def T(s, commentStr=""):
             expected = []
@@ -143,6 +149,8 @@ class TestDriver(unittest.TestCase):
         T("|int| *|   e||;||")
         T("|||&a||,||")
         T("|int|| a||;| // multi line\n // comment|", "multi line comment")
+        print "TEST"
+        T("|int|| d_a||;| // my (member)|")
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -532,6 +540,13 @@ void *d_ptr_p;
 
         T("""
                                 int              d_a;    // my member
+                                const char      *d_b_p;  // my other member
+                                unsigned int *&  d_c;    // yet another member
+
+          """)
+
+        T("""
+                                int              d_a;    // my (member)
                                 const char      *d_b_p;  // my other member
                                 unsigned int *&  d_c;    // yet another member
 
