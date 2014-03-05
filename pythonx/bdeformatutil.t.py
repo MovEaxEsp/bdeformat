@@ -490,6 +490,12 @@ class TestDriver(unittest.TestCase):
                                                                 bool        b);
           """);
 
+       # TODO fix
+       #T("""
+       #typedef bsl::unordered_map<bsls::Types::Int64,@
+       #                           bsl::vector<bsls::Types::Int64> >
+       #  """)
+
     def test_fixBdeData(self):
         # Special characters
         # 'W' - width marker.  The position of this specifies the 'width' arg
