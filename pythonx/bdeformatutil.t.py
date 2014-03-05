@@ -110,7 +110,6 @@ class TestDriver(unittest.TestCase):
             |char *d_c; // last thing|#
           """)
 
-        print "TEST"
         T("""#
             |int d_a; // something \n // with multi line comment|
             |double d_b; // something with a short comment|
@@ -545,6 +544,19 @@ void *d_ptr_p;
 
                                 unsigned int *&  d_c;    // yet another awesome
                                                          // member
+
+          """)
+
+        T("""
+                                            int   d_longMemberName1;
+                                                    // a comment
+
+                                            char *d_longMemberName2;
+                                                    // a longer comment
+
+                                            void *d_longMemberName3;
+                                                    // the loooooongest
+                                                    // commentt
 
           """)
 

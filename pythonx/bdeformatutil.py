@@ -150,7 +150,6 @@ def determineElements(line, openClose):
             endPos = openClose[1]
 
         element = line[startPos:endPos + 1].strip()
-        print element
         if len(element) >= 2 and element[0] == '/' and element[1] == '/':
             # This 'element' starts with a comment.  Append the comment to the
             # end of the previous element
@@ -159,11 +158,13 @@ def determineElements(line, openClose):
             if commentEndPos == -1:
                 commentEndPos = openClose[1]
             else:
-                if # TODO finish we have the indexof the last \n in the
-                   # element. See if the line after it is also a comment
+                lastLine = element[commentEndPos + 1:]
+                if lastLine.strip().find("//") == 0:
+                    commentEndPos = len(element)
+
             elements[len(elements)-1] += " " + element[0:commentEndPos].strip()
 
-            element = element[commentEndPos + 1:].strip()
+            element = element[commentEndPos:].strip()
 
         startPos = endPos + 1
 
