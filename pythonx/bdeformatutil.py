@@ -492,6 +492,7 @@ def writeComments(linesAndComments,
         maxCommentWidth += 3
 
     best = []
+    bestWidth = lineWidth
     for commentWidth in possibleWidths:
         commentPos = lineWidth - commentWidth
         if commentWidth <= 3:
@@ -524,8 +525,13 @@ def writeComments(linesAndComments,
         while result[-1] == "":
             result = result[:-1]
 
-        if len(best) == 0 or len(best) > len(result):
+        isBest = len(best) == 0
+        isBest = isBest or len(best) > len(result)
+        isBest = isBest or (len(best) == len(result) and
+                            commentWidth < bestWidth)
+        if isBest:
             best = result
+            bestWidth = commentWidth
 
     if len(best) == 0:
         best = [x[0] for x in linesAndComments]
