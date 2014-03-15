@@ -157,6 +157,8 @@ class TestDriver(unittest.TestCase):
         T("|int|| a||;| // multi line\n // comment|", "multi line comment")
         T("|int|| d_a||;| // my (member)|")
         T("|int|| a||;| // a, cmt, \n with, commas|", "a, cmt, with, commas")
+        T("|int|| a||| // comment, commas|")
+        T("|||bsl::vector<int>||||")
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -496,11 +498,10 @@ class TestDriver(unittest.TestCase):
                                                                 bool        b);
           """);
 
-       # TODO fix
-       #T("""
-       #typedef bsl::unordered_map<bsls::Types::Int64,@
-       #                           bsl::vector<bsls::Types::Int64> >
-       #  """)
+        T("""
+        typedef bsl::unordered_map<bsls::Types::Int64,@
+                                   bsl::vector<bsls::Types::Int64> >
+          """)
 
     def test_fixBdeData(self):
         # Special characters

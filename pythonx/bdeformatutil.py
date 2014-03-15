@@ -216,9 +216,16 @@ def parseElement(element):
     element that does have a type and value.  Use 'fixParsedElements' below to
     make a group of parsed elements consistent in this regard.
     """
-    endPos = findSkippingGroups(element, 0, ",;)}>]", 1)
+    END_CHARS = ",;)}>]"
+    endPos = findSkippingGroups(element, 0, END_CHARS, 1)
+    commentPos = element.find("//")
+    if commentPos >= 0 and commentPos < endPos:
+        # the element has no normal 'end' character, so end it where the
+        # comment starts
+        endPos = commentPos
+
     if endPos == -1:
-        raise ValueError("\"" + element + "\" has no end character")
+        endPos = len(element)
 
     equalPos = findSkippingGroups(element, 0,"=", 1)
     if equalPos > endPos:
@@ -271,13 +278,17 @@ def parseElement(element):
     else:
         valueStr = ""
 
-    endChar = element[endPos]
+    endChar = element[endPos] if endPos < len(element) else ""
+    if endChar not in END_CHARS:
+        endChar = ""
 
     whitespaceRegex = re.compile(r'\s+')
 
-    commentStr = element[endPos  + 1:].replace("//", "").replace("\n", " ")
-    commentStr = commentStr.strip()
-    commentStr = whitespaceRegex.sub(" ", commentStr)
+    commentStr = ""
+    if commentPos >= 0:
+        commentStr = element[commentPos:].replace("//", "").replace("\n", " ")
+        commentStr = commentStr.strip()
+        commentStr = whitespaceRegex.sub(" ", commentStr)
 
     return (typeStr, starsStr, nameStr, valueStr, endChar, commentStr)
 
@@ -568,6 +579,18 @@ def fixBdeBlock(text, pos, width, minCommentWidth):
     openClose = findOpenClose(text, pos)
     if not openClose:
         return None
+
+    # If the closing character is '>', and the char before it is '>', put a
+    # space between them. (Once we have C++11 compilers, this won't be
+    # necessary)
+    if text[openClose[1]] == '>':
+        prevChar = openClose[1] - 1#
+        while text[prevChar] in " \#n":
+            prevChar -= 1          #
+                                   #
+        if text[prevChar] == '>':
+            text = text[:openClose[1]] + ' ' + text[openClose[1]:]
+            openClose = (openClose[0], openClose[1] - 1)
 
     elements = [parseElement(e) for e in determineElements(text, openClose)]
     elements = fixParsedElements(elements);
