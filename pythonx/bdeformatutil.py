@@ -145,11 +145,30 @@ def determineElements(line, openClose):
     elements = []
     startPos = openClose[0] + 1
     while startPos < openClose[1]:
-        endPos = findSkippingGroups(line, startPos, ",;", 1)
+        # 's' will be the position to start search on first non-comment line
+        s = startPos
+        while True:
+            while s < openClose[1] and line[s] == ' ':
+                s += 1
+
+            remaining = line[s:openClose[1]]
+            if len(remaining) >= 2 and remaining.find("//") == 0:
+                nlPos = line.find("\n", s)
+                if nlPos >= 0:
+                    s = nlPos + 1
+                    continue
+                else:
+                    s = openClose[1]
+
+            # There are no more comment lines
+            break
+
+        endPos = findSkippingGroups(line, s, ",;", 1)
         if endPos == -1 or endPos >= openClose[1]:
             endPos = openClose[1]
 
         element = line[startPos:endPos + 1].strip()
+
         if len(element) >= 2 and element[0] == '/' and element[1] == '/':
             # This 'element' starts with a comment.  Append the comment to the
             # end of the previous element

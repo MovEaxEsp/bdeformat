@@ -115,6 +115,12 @@ class TestDriver(unittest.TestCase):
             |double d_b; // something with a short comment|
             |char *d_c; // last thing \n // with multi line comment|#
           """)
+        T("""#
+            |int d_a; // a, comment,
+                      // with, commas|
+
+            |double d_b; // another, comment,
+                         // with, commas|#""")
 
         T("""#
             |int              d_a; // my (member)|
@@ -149,8 +155,8 @@ class TestDriver(unittest.TestCase):
         T("|int| *|   e||;||")
         T("|||&a||,||")
         T("|int|| a||;| // multi line\n // comment|", "multi line comment")
-        print "TEST"
         T("|int|| d_a||;| // my (member)|")
+        T("|int|| a||;| // a, cmt, \n with, commas|", "a, cmt, with, commas")
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -578,6 +584,16 @@ void *d_ptr_p;
                                             void *d_longMemberName3;
                                                     // the loooooongest
                                                     // commentt
+
+          """)
+
+        T("""
+                                            int   d_mem;     // a, comment,,
+                                                             // commas
+
+                                            char *d_member;  // another,
+                                                             // comment, with,
+                                                             // commas
 
           """)
 
