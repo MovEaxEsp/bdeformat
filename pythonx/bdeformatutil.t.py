@@ -598,6 +598,12 @@ void *d_ptr_p;
 
           """)
 
+        T("""
+    dmpu::SmallBlobBufferAllocator  d_smallBlobBufferAllocator;
+                                      // used to allocate small, known sized
+                                      // buffers needed when splitting messages
+          """)
+
 # Test functions in 'bdeformatutil'
 if __name__ == "__main__":
     unittest.main();
