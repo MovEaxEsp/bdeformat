@@ -503,6 +503,15 @@ class TestDriver(unittest.TestCase):
                                    bsl::vector<bsls::Types::Int64> >
           """)
 
+
+        T("""
+        int ret = dmcu::BlobUtil::writeBytes(
+                                     @result,
+                                     dmcu::BlobPosition(0, sizeof(DMPMessage)),
+                                     (const char*)&recapMsg,
+                                     sizeof(RecapMessageV1));
+          """)
+
     def test_fixBdeData(self):
         # Special characters
         # 'W' - width marker.  The position of this specifies the 'width' arg
