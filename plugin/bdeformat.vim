@@ -1,3 +1,5 @@
-py from bdeformatvimadapter import formatBde
+if has("python")
+    py from bdeformatvimadapter import formatBde
 
-command! BDEFormat :py formatBde()
+    command! BDEFormat :py formatBde()
+endif
