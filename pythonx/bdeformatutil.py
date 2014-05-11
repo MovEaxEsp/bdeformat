@@ -135,6 +135,36 @@ def findOpenClose(line, pos):
             openPos = findOpen(line, closePos - 1)
 
     return (openPos, closePos) if openPos != None and closePos != None else None
+def findComment(line, start, end):
+    """
+    Find end position of the comment block starting at the specified 'start'
+    position in the specified 'line', going up to the specified 'end'
+    position'.  A comment block consists of any whitespace up to the starting
+    '//' sequence, and any subsequent comment lines until either 'end' is
+    reached, or a non-comment line is found.
+    If a comment isn't found from the 'start' position, return '-1'.
+    """
+    while start < end and line[start] in " \n":
+        start += 1
+
+    commentEnd = -1
+    while start < end:
+        if line[start] == " ":
+            start += 1
+            continue
+
+        if line.find("//", start) == start:
+            nlPos = line.find("\n", start)
+            if nlPos == -1 or nlPos >= end:
+                start = end
+            else:
+                start = nlPos + 1
+
+            commentEnd = start
+        else:
+            break
+
+    return commentEnd
 
 def determineElements(line, openClose):
     """
@@ -147,43 +177,16 @@ def determineElements(line, openClose):
     while startPos < openClose[1]:
         # 's' will be the position to start search on first non-comment line
         s = startPos
-        while True:
-            while s < openClose[1] and line[s] == ' ':
-                s += 1
-
-            remaining = line[s:openClose[1]]
-            if len(remaining) >= 2 and remaining.find("//") == 0:
-                nlPos = line.find("\n", s)
-                if nlPos >= 0:
-                    s = nlPos + 1
-                    continue
-                else:
-                    s = openClose[1]
-
-            # There are no more comment lines
-            break
 
         endPos = findSkippingGroups(line, s, ",;", 1)
         if endPos == -1 or endPos >= openClose[1]:
             endPos = openClose[1]
 
+        commentEnd = findComment(line, endPos + 1, openClose[1])
+        if commentEnd >= 0:
+            endPos = commentEnd
+
         element = line[startPos:endPos + 1].strip()
-
-        if len(element) >= 2 and element[0] == '/' and element[1] == '/':
-            # This 'element' starts with a comment.  Append the comment to the
-            # end of the previous element
-
-            commentEndPos = element.rfind('\n')
-            if commentEndPos == -1:
-                commentEndPos = openClose[1]
-            else:
-                lastLine = element[commentEndPos + 1:]
-                if lastLine.strip().find("//") == 0:
-                    commentEndPos = len(element)
-
-            elements[len(elements)-1] += " " + element[0:commentEndPos].strip()
-
-            element = element[commentEndPos:].strip()
 
         startPos = endPos + 1
 
@@ -373,10 +376,11 @@ def writeAlignedElements(alignedElements):
         # Write type
         if len(elem[0]) > 0:
             line = elem[0] + " "
-            nameStart = len(line) + 1
 
         # Write stars
         line = line + elem[1]
+
+        nameStart = len(line)
 
         # Write name
         line = line + elem[2]
@@ -630,7 +634,7 @@ def fixBdeData(text, width, minCommentWidth):
     consisting of the fixed text, or 'None' if there was a problem parsing the
     data definitions.
     """
-    openClose = (0, len(text))
+    openClose = (-1, len(text))
     elements = [parseElement(e) for e in determineElements(text, openClose)]
     elements = fixParsedElements(elements);
 
@@ -639,7 +643,6 @@ def fixBdeData(text, width, minCommentWidth):
 
     namePos = multilineRet[1]
     maxCommentWidth = width - namePos - 2
-
     ret = writeComments(multilineRet[0],
                         minCommentWidth,
                         maxCommentWidth,

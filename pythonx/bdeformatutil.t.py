@@ -77,11 +77,42 @@ class TestDriver(unittest.TestCase):
         T("#(foo@(i a) something#)")
         T("#(foo(i a@)#)")
 
+    def test_findComment(self):
+        def T(s):
+            start = s.find("#")
+            end = s.find("#", start + 1) - 2
+            trans = s.translate(None, "#@")
+            ret = bdeformatutil.findComment(trans, start, end)
+
+            expected = s.find("@") - 1
+            if expected == -2:
+                expected = -1
+
+            if expected == -1:
+                self.assertEqual(expected, ret)
+            elif ret != expected:
+                print "BAD RETURN:"
+                print trans[start:ret]
+                print "EXPECTED:"
+                print trans[start:expected]
+                self.assertEqual(ret, expected)
+
+        T("""
+            int a;#
+                // a long, multiline, comment
+                // sjhdf, sdfhj
+@
+            int b;# // next"
+          """)
+
     def test_determineElements(self):
         def T(s):
             noPipe = s.replace("|", "")
             openPos = noPipe.find("#")
-            openClose = (openPos, noPipe.find("#", openPos + 1) - 1)
+            if openPos == -1:
+                openClose = (-1, len(noPipe))
+            else:
+                openClose = (openPos, noPipe.find("#", openPos + 1) - 1)
 
             rawS = s.translate(None, "#|")
             expected = []
@@ -115,17 +146,28 @@ class TestDriver(unittest.TestCase):
             |double d_b; // something with a short comment|
             |char *d_c; // last thing \n // with multi line comment|#
           """)
-        T("""#
+        T("""
             |int d_a; // a, comment,
                       // with, commas|
 
             |double d_b; // another, comment,
-                         // with, commas|#""")
+                         // with, commas|""")
 
-        T("""#
+        T("""
             |int              d_a; // my (member)|
             |const char      *d_b_p; // my other member|
-            |unsigned int *&  d_c; // yet another member|#
+            |unsigned int *&  d_c; // yet another member|
+          """)
+
+        T("""
+   |dmpu::SmallBlobBufferAllocator  d_smallBlobBufferAllocator;
+                            // used to allocate small, known sized
+                            // buffers needed when splitting messages|
+          """)
+        T("""
+|dmpu::SmallBlobBufferAllocator d_smallBlobBufferAllocator;
+                                 // used to allocate small, known sized
+                                 // buffers needed when splitting messages|
           """)
 
     def test_parseElement(self):
@@ -608,9 +650,10 @@ void *d_ptr_p;
           """)
 
         T("""
-    dmpu::SmallBlobBufferAllocator  d_smallBlobBufferAllocator;
-                                      // used to allocate small, known sized
-                                      // buffers needed when splitting messages
+    dmpu::SmallBlobBufferAllocator d_smallBlobBufferAllocator;
+                                     // used to allocate small, known sized
+                                     // buffers needed when splitting messages
+
           """)
 
 # Test functions in 'bdeformatutil'
