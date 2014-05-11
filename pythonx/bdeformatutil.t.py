@@ -201,6 +201,9 @@ class TestDriver(unittest.TestCase):
         T("|int|| a||;| // a, cmt, \n with, commas|", "a, cmt, with, commas")
         T("|int|| a||| // comment, commas|")
         T("|||bsl::vector<int>||||")
+        T("|||*&var||,||")
+        T("|||(const char*)&recapMsg||,||")
+
 
     def test_alignElementParts(self):
         # 'f' takes a list of strings, replaces '|' with some spaces in
@@ -544,7 +547,6 @@ class TestDriver(unittest.TestCase):
         typedef bsl::unordered_map<bsls::Types::Int64,@
                                    bsl::vector<bsls::Types::Int64> >
           """)
-
 
         T("""
         int ret = dmcu::BlobUtil::writeBytes(

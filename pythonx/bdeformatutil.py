@@ -270,10 +270,12 @@ def parseElement(element):
 
     if haveType:
         typeStr = element[:starsStart].strip()
+        starsStr = element[starsStart:nameStart].replace(" ", "")
     else:
         typeStr = ""
+        starsStr = ""
+        nameStart = 0
 
-    starsStr = element[starsStart:nameStart].replace(" ", "")
     nameStr = " ".join(element[nameStart:nameEnd + 1].strip().split())
 
     if equalPos > 0:
