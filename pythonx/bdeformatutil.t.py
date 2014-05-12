@@ -658,6 +658,16 @@ void *d_ptr_p;
 
           """)
 
+        T("""
+    dmpip::Publisher2            **d_publisher_p;
+                                     // the publisher to use wen sending
+                                     // responses to subscribers
+
+    dmpit::Types::SubscriptionId   d_subscriptionIdStart;
+                                     // the first subscriptionId we should use
+
+          """)
+
 # Test functions in 'bdeformatutil'
 if __name__ == "__main__":
     unittest.main();
