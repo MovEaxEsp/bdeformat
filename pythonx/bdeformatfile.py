@@ -71,6 +71,7 @@ def formatBde(fileName, row, col):
         m.seek(startPos)
         m.write(fixed)
         m.write("\n")
+        m.flush()
         m.close()
 
     # Touch the file, so editors detect that it changed
