@@ -46,7 +46,10 @@ class SectionType:
         "// NOT IMPLEMENTED"      : OTHER,
         "// TYPES"                : OTHER,
         "// PRIVATE TYPES"        : OTHER,
-        "// FRIENDS"              : OTHER
+        "// FRIENDS"              : OTHER,
+        "// TRAITS"               : OTHER,
+        "}"                       : OTHER,
+        "};"                      : OTHER
     }
 
     @staticmethod
