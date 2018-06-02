@@ -1,0 +1,135 @@
+# Snippets for generating bde-formatted code in C++ files
+
+global !p
+from sniputil import *
+import parseutil
+import sniputil
+from sectiontype import SectionType
+
+def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
+	"""
+	Generate some python to produce a tabstop with some text before, and some
+	text after the tabstop if the tabstop isn't empty
+	"""
+
+	ret = ""
+
+	# Pre text
+	if len(preText) > 0:
+		ret += "`!p snip.rv = '" + preText + "' " + \
+				"if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
+
+	# Tab stop
+	if defaultVal and len(defaultVal) > 0:
+		ret += "${" + str(tabStopNum) + ":" + defaultVal + "}"
+	else:
+		ret += "$" + str(tabStopNum)
+
+	# Post text
+	if len(postText) > 0:
+		ret += "`!p snip.rv = '" + postText + "' " + \
+				"if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
+
+	return ret
+
+def clearSnipLine(snip):
+	"""
+	Clear the current line of the specified 'snip' and set the current
+	position to the beginning of it.
+	"""
+	snip.buffer[snip.line] = ""
+	snip.cursor.set(snip.line, 0)
+
+def genCctorSnippet(snip):
+	"""
+	Generate and expand a snippet for a copy constructor, using the
+	'snip.visual_content' as the data members to initialize, or by searching
+	for the members of the closest class otherwise.
+	"""
+	def lineGen(start, end):
+		step = 1 if start < end else -1
+		for line in range(start, end, step):
+			yield snip.buffer[line]
+
+	classname = parseutil.findClassName(lineGen(snip.line, 0))
+	lines = [genTabStopPrePost("", 1, classname, "")+\
+		"::$1(const $1& other" + \
+		genTabStopPrePost(
+					   ", bslma::Allocator *", 2, "basicAllocator", " = 0") + \
+		")"]
+
+	members = snip.visual_content
+	if len(members) == 0 and len(classname) > 0:
+		# Find the members section of the classname
+		members = sniputil.extractClassSectionAnywhere(classname,
+													   SectionType.DATA)
+
+	snipNum = 3
+	separator = ": "
+	for mem in parseutil.parseMembers(members):
+		snipLine = separator
+		snipLine += mem + "(other." + mem
+		snipLine += genTabStopPrePost(", ", snipNum, "$2", "")
+		snipLine += ")"
+		lines.append(snipLine)
+
+		separator = ", "
+		snipNum += 1
+
+	lines.append("{")
+	lines.append("}")
+
+	snip.expand_anon("\n".join(lines))
+
+def genCtorMemSnippet(snip):
+	# If line above snip.line starts with ', ' or ': ' then we'll start with
+	# ', ', otherwise we'll start with ': '
+	prevLine = snip.buffer[snip.line - 1].strip()
+	separator = ", " if (prevLine.startswith(": ") or
+						 prevLine.startswith(", ")) else \
+				": "
+
+	members = snip.visual_content
+	if len(members) == 0:
+		# Find the classname
+		def lineGen(start, end):
+			step = 1 if start < end else -1
+			for line in range(start, end, step):
+				yield snip.buffer[line]
+
+		classname = parseutil.findClassName(lineGen(snip.line, 0))
+		if len(classname) > 0:
+			# Find the members section of the classname
+			members = sniputil.extractClassSectionAnywhere(classname,
+														   SectionType.DATA)
+
+	lines = []
+	snipNum = 1
+	for mem in parseutil.parseMembers(members):
+		snipLine = separator
+		snipLine += mem + ("($%d" % snipNum)
+		snipLine += ")"
+		lines.append(snipLine)
+
+		snipNum += 1
+		separator = ", "
+
+	snip.expand_anon("\n".join(lines))
+
+endglobal
+
+                                   # #####
+                                   # cctor
+                                   # #####
+
+pre_expand "clearSnipLine(snip); genCctorSnippet(snip)"
+snippet cctor
+endsnippet
+
+                                  # #######
+                                  # ctormem
+                                  # #######
+
+pre_expand "clearSnipLine(snip); genCtorMemSnippet(snip)"
+snippet ctormem
+endsnippet
