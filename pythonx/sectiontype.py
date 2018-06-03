@@ -12,20 +12,28 @@ class SectionType:
         # A MANIPULATORS section, containing member function
         # declarations/definitions
 
-    ACCESSORS = 3
+    PRIVATE_MANIPULATORS = 3
+        # A PRIVATE MANOPIULATORS section, containing member function
+        # declaratoions/definitions
+
+    ACCESSORS = 4
         # An ACCESSORS section, containing member function
         # declarations/definitions
 
-    CREATORS = 4
+    PRIVATE_ACCESSORS = 5
+        # A PRIVATE ACCESSORS section, containing member function
+        # declarations/definitions
+
+    CREATORS = 6
         # A CREATORS section, containing constructors/destructor
 
-    PUBLIC = 5
+    PUBLIC = 7
         # A 'public:' section
 
-    PROTECTED = 6
+    PROTECTED = 8
         # A 'protected:' section
 
-    PRIVATE = 7
+    PRIVATE = 9
         # A 'private:' section
 
     OTHER = 99
@@ -35,9 +43,9 @@ class SectionType:
         "// DATA"                 : DATA,
         "// PUBLIC DATA"          : DATA,
         "// MANIPULATORS"         : MANIPULATORS,
-        "// PRIVATE MANIPULATORS" : MANIPULATORS,
+        "// PRIVATE MANIPULATORS" : PRIVATE_MANIPULATORS,
         "// ACCESSORS"            : ACCESSORS,
-        "// PRIVATE ACCESSORS"    : ACCESSORS,
+        "// PRIVATE ACCESSORS"    : PRIVATE_ACCESSORS,
         "// CREATORS"             : CREATORS,
         "// PRIVATE CREATORS"     : CREATORS,
         "public:"                 : PUBLIC,

@@ -220,6 +220,44 @@ class TestDriver(unittest.TestCase):
              volatile A*   d_d;
           """, "d_a,d_b,d_c,d_d")
 
+    def test_parseFuncDeclaration(self):
+        def T(s, expected):
+            ret = parseutil.parseFuncDeclaration(s)
+            self.assertEqual(ret, expected)
+
+        T("void foo(int a);", ("void", "foo", "(int a)", ";"))
+        T("const char *getStr() const;",
+          ("const char *", "getStr", "()", "const;"))
+        T("int& get_int(int arg) = 0;",
+          ("int&", "get_int", "(int arg)", "= 0;"))
+
+    def test_parseFuncDeclarations(self):
+        def T(s, expected):
+            ret = parseutil.parseFuncDeclarations(s)
+            self.assertEqual(ret, expected)
+
+        T("""
+          int foo();
+            // Some comments
+
+          bool& bar(int arg) const; // some other comments
+
+
+          // Some comments above mayb
+          int<abc>foo[]garbage; // and on the side
+          // and uner
+
+          bsl::shared_ptr<int&> *baz(int abc, char def) = 0;
+            // Some more comments
+          """,
+          [
+              ("int", "foo", "()", ";"),
+              ("bool&", "bar", "(int arg)", "const;"),
+              "int<abc>foo[]garbage;",
+              ("bsl::shared_ptr<int&> *", "baz", "(int abc, char def)", "= 0;")
+          ])
+
+
     def test_findClassName(self):
         def T(s, expected):
             def gen():

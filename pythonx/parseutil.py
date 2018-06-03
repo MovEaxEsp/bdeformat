@@ -1,34 +1,6 @@
-# TODO fix comment and move test drivers
 """
-bdeformatutil.py: Utility functions for formatting C++ according to BDE
-standard.
-
-This module defines a number of functions that together can be used to format
-a wide range of C++ constructs according to BDE style.  These include:
-
-* Function definitions
-    int someFunctions(const char        *arg1,
-                      const SomeObject&  arg2,
-                      bslma::Allocator  *allocator) const;
-
-* Function calls
-    int ret = foo->doSomething(y,
-                               static_cast<void *>(x),
-                               someReallyLongVariable);
-
-* Class data definitions
-    int               d_version;      // version of the widget
-
-    const char       *d_name;         // name of the widget
-
-    double            d_foo;          // a member with a very complicated
-                                      // purpose that requires a long
-                                      // explanation
-
-    bslma::Allocator *d_allocator_p;  // held, not owned
-
-As well as variations on these such as template parameter lists and POD
-initialization lists
+parseutil.py: Utility functions for parsing C++ using the time-honored
+tradition of regex
 """
 
 import re
@@ -345,7 +317,55 @@ def parseMembers(decl):
 
     return mems
 
-def findClassName(lineGen):
+def parseFuncDeclaration(decl):
+    """
+    Parse the specified function declaration 'decl', which is a C++ member
+    function declaration with all comments and leading/trailing whitespace
+    removed, into a tuple of the form:
+    (return type, name, parameters, suffix)
+    'parameters' includes the opening and closing parnthesis, and 'suffix' is
+    the text after the closing parenthesis, up to and including the ending
+    semicolon.  If the declaration can't be parsed, None is returned.
+    """
+
+    # Find the closing parenthesis
+    closeParen = decl.rfind(")")
+    if closeParen == -1:
+        return None
+
+    openParen = findSkippingGroups(decl, closeParen-1, "(", -1)
+    if openParen == -1:
+        return None
+
+    nameStart = max(decl.rfind(" ", 0, openParen),
+                    decl.rfind("*", 0, openParen),
+                    decl.rfind("&", 0, openParen))
+    if nameStart == -1:
+        return None
+
+    return (decl[:nameStart+1].strip(),
+            decl[nameStart + 1:openParen].strip(),
+            decl[openParen:closeParen+1].strip(),
+            decl[closeParen + 1:].strip())
+
+def parseFuncDeclarations(decl):
+    """
+    Parse the specified member function declaration section 'decl' and return
+    a list of tuples, one for each function in the section. Each tuple is of
+    the form returned by 'parseFuncDeclaration'.
+    """
+    # Remove comments
+    decl = re.sub(r'//.*', '', decl)
+
+    # Split on ; to get the individual declarations
+    funcs = filter(lambda f: f != ";",
+                   [func.strip() + ";" for func in decl.split(";")])
+
+    # Parse each function declaration, extracting each field we're interested
+    # in.  If a declaration fails to be parsed, leave it in the result verbatim
+    return [parseFuncDeclaration(func) or func for func in funcs]
+
+def findClassName(lineGen, onlyDef = False):
     """
     Keep getting lines from the specified 'lineGen' generator, looking for
     a class/struct section name, and return the class name if found,
@@ -353,14 +373,20 @@ def findClassName(lineGen):
     // ---------- (or ======)
     // class Foo
     // ---------
+    If the specified 'onlyDef' is 'True', only succeed if we find the class
+    definition, that is one surrounded by '// ======'
     """
 
     if not hasattr(findClassName, "pattern"):
         findClassName.pattern = re.compile(r'^ *// (?:class|struct) (.*)')
+        findClassName.defPattern = re.compile(r'^ *// =+ *$')
 
     for line in lineGen:
         match = findClassName.pattern.match(line)
         if (match):
+            if onlyDef:
+                if not findClassName.defPattern.match(next(lineGen)):
+                    continue
             return match.group(1)
 
     return None
@@ -374,9 +400,9 @@ def extractClassSection(lineGen, className, section):
     """
 
     # First search for the class
-    foundClass = findClassName(lineGen)
+    foundClass = findClassName(lineGen, True)
     while foundClass != None and foundClass != className:
-        foundClass = findClassName(lineGen)
+        foundClass = findClassName(lineGen, True)
 
     if foundClass == None:
         # Couldn't find class section

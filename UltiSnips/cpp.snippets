@@ -4,33 +4,8 @@ global !p
 from sniputil import *
 import parseutil
 import sniputil
+import bdeformatutil
 from sectiontype import SectionType
-
-def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
-	"""
-	Generate some python to produce a tabstop with some text before, and some
-	text after the tabstop if the tabstop isn't empty
-	"""
-
-	ret = ""
-
-	# Pre text
-	if len(preText) > 0:
-		ret += "`!p snip.rv = '" + preText + "' " + \
-				"if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
-
-	# Tab stop
-	if defaultVal and len(defaultVal) > 0:
-		ret += "${" + str(tabStopNum) + ":" + defaultVal + "}"
-	else:
-		ret += "$" + str(tabStopNum)
-
-	# Post text
-	if len(postText) > 0:
-		ret += "`!p snip.rv = '" + postText + "' " + \
-				"if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
-
-	return ret
 
 def clearSnipLine(snip):
 	"""
@@ -40,7 +15,7 @@ def clearSnipLine(snip):
 	snip.buffer[snip.line] = ""
 	snip.cursor.set(snip.line, 0)
 
-def genCctorSnippet(snip):
+def expandCctorSnippet(snip):
 	"""
 	Generate and expand a snippet for a copy constructor, using the
 	'snip.visual_content' as the data members to initialize, or by searching
@@ -52,36 +27,22 @@ def genCctorSnippet(snip):
 			yield snip.buffer[line]
 
 	classname = parseutil.findClassName(lineGen(snip.line, 0))
-	lines = [genTabStopPrePost("", 1, classname, "")+\
-		"::$1(const $1& other" + \
-		genTabStopPrePost(
-					   ", bslma::Allocator *", 2, "basicAllocator", " = 0") + \
-		")"]
 
-	members = snip.visual_content
-	if len(members) == 0 and len(classname) > 0:
+	memberDefs = snip.visual_content
+	if len(memberDefs) == 0 and len(classname) > 0:
 		# Find the members section of the classname
-		members = sniputil.extractClassSectionAnywhere(classname,
-													   SectionType.DATA)
+		memberDefs = sniputil.extractClassSectionAnywhere(classname,
+														  SectionType.DATA)
 
-	snipNum = 3
-	separator = ": "
-	for mem in parseutil.parseMembers(members):
-		snipLine = separator
-		snipLine += mem + "(other." + mem
-		snipLine += genTabStopPrePost(", ", snipNum, "$2", "")
-		snipLine += ")"
-		lines.append(snipLine)
+	clearSnipLine(snip)
+	snip.expand_anon(sniputil.genCctorSnippet(classname, memberDefs))
 
-		separator = ", "
-		snipNum += 1
+def expandCtorMemSnippet(snip):
+	"""
+	Generate and expand a snippet for the constructor initialization of member
+	variables using the specified 'snip'.
+	"""
 
-	lines.append("{")
-	lines.append("}")
-
-	snip.expand_anon("\n".join(lines))
-
-def genCtorMemSnippet(snip):
 	# If line above snip.line starts with ', ' or ': ' then we'll start with
 	# ', ', otherwise we'll start with ': '
 	prevLine = snip.buffer[snip.line - 1].strip()
@@ -103,18 +64,50 @@ def genCtorMemSnippet(snip):
 			members = sniputil.extractClassSectionAnywhere(classname,
 														   SectionType.DATA)
 
-	lines = []
-	snipNum = 1
-	for mem in parseutil.parseMembers(members):
-		snipLine = separator
-		snipLine += mem + ("($%d" % snipNum)
-		snipLine += ")"
-		lines.append(snipLine)
+	clearSnipLine(snip)
+	snip.expand_anon(sniputil.genCtorMemSnippet(members, separator))
 
-		snipNum += 1
-		separator = ", "
+def expandDefSnippet(snip):
+	"""
+	Generate a snippet for the definitions of the declarations either in the
+	current visual_content, or the current class's current section.  If the
+	specified 'inHeader' is 'True', prepend each definition with an 'inline'.
+	"""
 
-	snip.expand_anon("\n".join(lines))
+	bufName = vim.current.buffer.name
+	inHeader = bufName.endswith(".h")
+
+	def lineGen():
+		for line in range(snip.line, 0, -1):
+			yield snip.buffer[line]
+
+	classname = parseutil.findClassName(lineGen())
+	if not classname:
+		raise Error("Need to be under a BDE class/struct heading")
+
+	decls = snip.visual_content
+	if len(decls) == 0:
+		# Search up for a section name, and find the corresponding section in
+		# the class definition to pull declarations from
+		section = None
+		for line in range(snip.line, 0, -1):
+			section = SectionType.check(snip.buffer[line])
+			if section == SectionType.ACCESSORS or \
+			   section == SectionType.PRIVATE_ACCESSORS or \
+			   section == SectionType.MANIPULATORS or \
+			   section == SectionType.PRIVATE_MANIPULATORS:
+				break
+
+		if not section:
+			raise Error("Need to be in a bde section, or have visual content")
+
+		decls = sniputil.extractClassSectionAnywhere(classname, section)
+		if not decls:
+			raise Error("Can't find section %s in class %s" % \
+														  (section, classname))
+
+	clearSnipLine(snip)
+	snip.expand_anon(sniputil.genDefSnippet(classname, decls, inHeader))
 
 endglobal
 
@@ -122,7 +115,7 @@ endglobal
                                    # cctor
                                    # #####
 
-pre_expand "clearSnipLine(snip); genCctorSnippet(snip)"
+pre_expand "expandCctorSnippet(snip)"
 snippet cctor
 endsnippet
 
@@ -130,6 +123,14 @@ endsnippet
                                   # ctormem
                                   # #######
 
-pre_expand "clearSnipLine(snip); genCtorMemSnippet(snip)"
+pre_expand "expandCtorMemSnippet(snip)"
 snippet ctormem
+endsnippet
+
+                                    # ###
+                                    # def
+                                    # ###
+
+pre_expand "expandDefSnippet(snip)"
+snippet def
 endsnippet

@@ -32,6 +32,7 @@ initialization lists
 
 import re
 from parseutil import *
+from functools import reduce
 
 from sectiontype import SectionType
 
