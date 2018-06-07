@@ -1,11 +1,10 @@
 # Snippets for generating bde-formatted code in C++ files
 
 global !p
-from sniputil import *
 import parseutil
 import sniputil
-import bdeformatutil
 from sectiontype import SectionType
+
 
 def clearSnipLine(snip):
 	"""
@@ -109,6 +108,62 @@ def expandDefSnippet(snip):
 	clearSnipLine(snip)
 	snip.expand_anon(sniputil.genDefSnippet(classname, decls, inHeader))
 
+def expandDeclSnippet(snip, manipSetters = False):
+
+	# Find the classname
+	def lineGen(start, end):
+		step = 1 if start < end else -1
+		for line in range(start, end, step):
+			yield snip.buffer[line]
+
+	classname = parseutil.findClassName(lineGen(snip.line, 0))
+	if not classname:
+		raise Exception("Need to be under a BDE class/struct heading")
+
+	# Determine the member definitions to use
+	memberDefs = snip.visual_content
+	if len(memberDefs) == 0 and len(classname) > 0:
+		# Find the members section of the classname
+
+		memberDefs = parseutil.extractClassSection(
+												  lineGen(0, len(snip.buffer)),
+												  classname,
+												  SectionType.DATA)
+
+	# See if we're under an ACCESSORS or MANIPULATORS heading
+	section = None
+	for line in lineGen(snip.line, 0):
+		section = SectionType.check(line)
+		if section == SectionType.CREATORS or \
+		   section == SectionType.PRIVATE_CREATORS or \
+		   section == SectionType.ACCESSORS or \
+		   section == SectionType.PRIVATE_ACCESSORS or \
+		   section == SectionType.MANIPULATORS or \
+		   section == SectionType.PRIVATE_MANIPULATORS:
+			break
+
+	if section != SectionType.ACCESSORS and \
+	   section != SectionType.MANIPULATORS:
+		raise Exception("Need to be under an ACCESSORS or MANIPULATORS header")
+
+	if section == SectionType.ACCESSORS:
+		snipText = sniputil.genDeclSnippet(classname,
+										   memberDefs,
+										   sniputil.genAccessorDeclSnippet)
+	elif section == SectionType.MANIPULATORS:
+		if manipSetters:
+			snipText = sniputil.genDeclSnippet(classname,
+											   memberDefs,
+											   sniputil.genSetterDeclSnippet)
+		else:
+			snipText = sniputil.genDeclSnippet(
+										    classname,
+								            memberDefs,
+								            sniputil.genManipulatorDeclSnippet)
+
+	clearSnipLine(snip)
+	snip.expand_anon(snipText)
+
 endglobal
 
                                    # #####
@@ -133,4 +188,20 @@ endsnippet
 
 pre_expand "expandDefSnippet(snip)"
 snippet def
+endsnippet
+
+                                    # ####
+                                    # decl
+                                    # ####
+
+pre_expand "expandDeclSnippet(snip)"
+snippet decl
+endsnippet
+
+                                # ############
+                                # decl_setters
+                                # ############
+
+pre_expand "expandDeclSnippet(snip, True)"
+snippet decl_setters
 endsnippet

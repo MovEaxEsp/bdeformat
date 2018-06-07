@@ -27,13 +27,16 @@ class SectionType:
     CREATORS = 6
         # A CREATORS section, containing constructors/destructor
 
-    PUBLIC = 7
+    PRIVATE_CREATORS = 7
+        # A PRIVATE CREATORS section, containing constructors/destructor
+
+    PUBLIC = 8
         # A 'public:' section
 
-    PROTECTED = 8
+    PROTECTED = 9
         # A 'protected:' section
 
-    PRIVATE = 9
+    PRIVATE = 10
         # A 'private:' section
 
     OTHER = 99
@@ -47,7 +50,7 @@ class SectionType:
         "// ACCESSORS"            : ACCESSORS,
         "// PRIVATE ACCESSORS"    : PRIVATE_ACCESSORS,
         "// CREATORS"             : CREATORS,
-        "// PRIVATE CREATORS"     : CREATORS,
+        "// PRIVATE CREATORS"     : PRIVATE_CREATORS,
         "public:"                 : PUBLIC,
         "protected:"              : PROTECTED,
         "private:"                : PRIVATE,

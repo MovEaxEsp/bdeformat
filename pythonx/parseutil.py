@@ -299,11 +299,11 @@ def fixParsedElements(parsedElements):
 def parseMembers(decl):
     """
     Parse the specified member variable declaration section 'decl' and
-    return a list of the members defined there.
+    return a list of tuples of the form (type, name)
     """
 
     # Remove comments
-    mems = re.sub(r'//.*', '', decl)
+    mems = re.sub(r'\s*//.*', '', decl)
 
     # Remove empty lines
     mems = re.sub(r'\n\s*\n', '\n', mems, 0, re.MULTILINE)
@@ -311,11 +311,18 @@ def parseMembers(decl):
     # Remove last newline, if any
     mems = re.sub(r'\n\s*$', '', mems, 0, re.MULTILINE)
 
-    # Remove declarations/semicolon
-    mems = [re.sub(r'.*[ *&]([^ *&]*);.*', r'\1', l) \
-                    for l in mems.split('\n')]
+    def parseMem(m):
+        nameStart = max(m.rfind(" "), m.rfind("*"), m.rfind("&"))
+        if nameStart == -1:
+            return None
 
-    return mems
+        # Cleanup the type
+        mType = re.sub(r'\s+', ' ', m[:nameStart+1].strip())
+        mType = re.sub(r' &', '&', mType)
+
+        return (mType, m[nameStart+1:-1])
+
+    return filter(lambda l: l != None, [parseMem(m) for m in mems.split("\n")])
 
 def parseFuncDeclaration(decl):
     """

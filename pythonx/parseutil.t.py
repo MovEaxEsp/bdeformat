@@ -203,22 +203,25 @@ class TestDriver(unittest.TestCase):
         T("|||(const char*)&recapMsg||,||")
 
     def test_parseMembers(self):
-        def T(s, res):
-            expected = res.split(",")
+        def T(s, expected):
             parsed = parseutil.parseMembers(s)
-
             self.assertEqual(parsed, expected)
 
-        T("int d_abc;", "d_abc")
+        T("int d_abc;", [("int", "d_abc")])
         T("""int d_a;
              int d_b;
-          """, "d_a,d_b")
+          """, [("int", "d_a"), ("int", "d_b")])
         T("""const Type *& d_a;
              int           d_b;
              double       &d_c; // some comment
                                 // that spans lines
              volatile A*   d_d;
-          """, "d_a,d_b,d_c,d_d")
+             const char   *d_e;
+          """, [("const Type *&", "d_a"),
+                ("int",           "d_b"),
+                ("double&",       "d_c"),
+                ("volatile A*",   "d_d"),
+                ("const char *",  "d_e")])
 
     def test_parseFuncDeclaration(self):
         def T(s, expected):
@@ -296,6 +299,7 @@ class TestDriver(unittest.TestCase):
           a
           b
            // class Foo
+           // =========
            // DATA
            int a;
            int b; // comment
@@ -306,10 +310,12 @@ class TestDriver(unittest.TestCase):
            int b; // comment""")
         T("""
            // class A
+           // =======
            // DATA
            int a;
 
            // struct B
+           // ========
 
            // PUBLIC DATA
            int b;
@@ -325,6 +331,7 @@ class TestDriver(unittest.TestCase):
 """)
         T("""
           // class Bar
+          // =========
 
           // ACCESSORS
           int foo(); // something
@@ -342,6 +349,7 @@ class TestDriver(unittest.TestCase):
 """)
         T("""
           // class Foo
+          // =========
 
           // DATA
           int d_a

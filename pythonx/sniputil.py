@@ -1,180 +1,33 @@
 """"
-sniptil.py: Utility functions for building/writing snippets
+sniptil.py: Utility functions for building bdeformat snippets
 
-This module defines a number of functions that are useful either in the
-process of writing UltiSnips snippets, or that generate snippets themselves.
+This module defines functions that are used to generate UltiSnip snippets for
+various BDE-style portions of C++.
 """
 
 import bdeformatutil
-import string
 import vim
 import parseutil
+import re
 from sectiontype import SectionType
+import textwrap
 
-def copyright():
-    import datetime
-    return """// ----------------------------------------------------------------------------
-// NOTICE:
-//      Copyright (C) Bloomberg L.P., {0}
-//      All Rights Reserved.
-//      Property of Bloomberg L.P. (BLP)
-//      This software is made available solely pursuant to the
-//      terms of a BLP license agreement which governs its use.
-// ------------------------------ END-OF-FILE ---------------------------------""".format(datetime.date.today().year)
+s_commentTextwrap = textwrap.TextWrapper()
+s_commentTextwrap.width = 79
+s_commentTextwrap.initial_indent = "        // "
+s_commentTextwrap.subsequent_indent = s_commentTextwrap.initial_indent
 
-def getFtCommentStr(ft = None):
+def snipOptional(snipNum, text, expandWhenNotEmpty = True):
     """
-    Get the comment string for the specified 'ft', or for the filetype of the
-    current vim buffer if 'ft == None'
+    Return a snippet string that will have the specified 'text' depending on
+    whether the content of the specified 'snipNum' snippet tabstop isn't
+    empty, as determined by the specified 'expansdWhenNotEmpty'.
     """
 
-    if not ft:
-        ft = vim.current.buffer.options['ft']
+    return "`!p snip.rv = \"\"\"" + text + "\"\"\" " + \
+            "if len(t[" + str(snipNum) + "]) " +\
+            (">" if expandWhenNotEmpty else "==") + " 0 else ''`";
 
-    if ft == "c" or ft == "cpp" or ft == "javascript":
-        return "// "
-    elif ft == "python":
-        return "# "
-    else:
-        # Most other things use # (I think)
-        return "# "
-
-def rightAlign(width, text):
-    return (width - len(text))*' ' + text
-
-def centerPadding(text):
-    """
-    Return the padding necessary to center the specified 'text' in a line 79
-    chars wide.
-    """
-    return ' ' * int(39 - (len(text))/2)
-
-def centerBorder(border, text, commentStr="// "):
-    """
-    Return the border consisting of the specified 'border' character,
-    beginning with the specified 'commentStr' for the specified 'text'
-    centered in a line 79 chars wide.
-    """
-    return centerPadding(commentStr + text) + commentStr + border*len(text)
-
-def centerComment(text, commentStr="// "):
-    """
-    Return the beginning of a centered comment, i.e. the padding and the
-    specified 'commentStr' characters needed to center the specified 'text' in
-    a line 79 chars wide.
-    """
-    return centerPadding(commentStr + text) + commentStr
-
-def header(border, text):
-    lines = [
-        centerBorder(border, text),
-        centerComment(text) + text,
-        centerBorder(border, text)]
-    return "\n".join(lines)
-
-
-def classDef(name):
-    """
-    Return the class definition for a class with the specified 'name'.
-    """
-
-    template = string.Template("""class $name {
-    // TODO
-
-  private:
-    // DATA
-
-    // NOT IMPLEMENTED
-    $name(const $name&);
-    $name& operator=(const $name&);
-
-  public:
-    // TRAITS
-    BSLMF_NESTED_TRAIT_DECLARATION($name,
-                                   bslma::UsesBslmaAllocator);
-
-    // CREATORS
-    explicit $name(bslma::Allocator *basicAllocator = 0);
-
-    // MANIPULATORS
-
-    // ACCESSORS
-};""")
-
-    return template.safe_substitute({"name":name})
-
-def structDef(name):
-    """
-    Return the definition for a struct with the specified 'name'.
-    """
-
-    template = string.Template("""struct $name {
-    // TODO
-
-  public:
-    // PUBLIC DATA
-
-    // NOT IMPLEMENTED
-    $name(const $name&);
-    $name& operator=(const $name&);
-
-  public:
-    // TRAITS
-    BSLMF_NESTED_TRAIT_DECLARATION($name,
-                                   bslma::UsesBslmaAllocator);
-
-    // CREATORS
-    explicit $name(bslma::Allocator *basicAllocator = 0);
-
-    // MANIPULATORS
-
-    // ACCESSORS
-};""")
-
-    return template.safe_substitute({"name":name})
-
-def utilDef(name):
-    """
-    Return the definition for a utility struct with the specified 'name'.
-    """
-
-    template = string.Template("""struct $name {
-    // TODO
-
-    // CLASS METHODS
-};""")
-
-    return template.safe_substitute({"name":name})
-
-def protocolDef(name):
-    """
-    Return the definition of a protocol class with the specified 'name'.
-    """
-
-    template = string.Template("""class $name {
-
-  public:
-    // CREATORS
-    virtual ~$name();
-
-    // MANIPULATORS
-};""")
-
-    return template.safe_substitute({"name":name})
-
-def enumDef(name):
-    """
-    Return the definition of an enum struct with the specified 'name'.
-    """
-
-    template = string.Template("""struct $name {
-
-    enum Enum {
-
-    };
-};""")
-
-    return template.safe_substitute({"name":name})
 
 def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
     """
@@ -186,8 +39,7 @@ def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
 
     # Pre text
     if len(preText) > 0:
-        ret += "`!p snip.rv = '" + preText + "' " + \
-                "if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
+        ret += snipOptional(tabStopNum, preText)
 
     # Tab stop
     if defaultVal and len(defaultVal) > 0:
@@ -197,8 +49,7 @@ def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
 
     # Post text
     if len(postText) > 0:
-        ret += "`!p snip.rv = '" + postText + "' " + \
-                "if len(t[" + str(tabStopNum) + "]) > 0 else ''`";
+        ret += snipOptional(tabStopNum, postText)
 
     return ret
 
@@ -253,7 +104,7 @@ def genCctorSnippet(classname, memberDefs):
 
     snipNum = 3
     separator = ": "
-    for mem in parseutil.parseMembers(memberDefs):
+    for typeName, mem in parseutil.parseMembers(memberDefs):
         snipLine = separator
         snipLine += mem + "(other." + mem
         snipLine += genTabStopPrePost(", ", snipNum, "$2", "")
@@ -277,7 +128,7 @@ def genCtorMemSnippet(memberDefs, separator):
 
     lines = []
     snipNum = 1
-    for mem in parseutil.parseMembers(memberDefs):
+    for typeName, mem in parseutil.parseMembers(memberDefs):
         snipLine = separator
         snipLine += mem + ("($%d" % snipNum)
         snipLine += ")"
@@ -338,5 +189,77 @@ def genDefSnippet(classname, decls, inHeader):
         snipLines.append("")
 
         snipNum += 1
+
+    return "\n".join(snipLines)
+
+def genAccessorDeclSnippet(typeName, cleanName, snipNum):
+    line = "    " + snipOptional(snipNum, "const ") + typeName
+    if typeName[-1] != "*":
+        line += genTabStopPrePost("", snipNum, "&", "") + " "
+    else:
+        line += genTabStopPrePost("", snipNum, "&", " ")
+
+    line += cleanName + "() const;\n"
+
+    # Add comment
+    refComment = s_commentTextwrap.fill(
+        ("Return a reference providing const access to the '%s' " + \
+         "property of this object.") % cleanName)
+    noRefComment = s_commentTextwrap.fill(
+        "Return the '%s' property of this object." % cleanName)
+
+    line += snipOptional(snipNum, refComment, True) + \
+            snipOptional(snipNum, noRefComment, False)
+
+    return line
+
+def genManipulatorDeclSnippet(typeName, cleanName, snipNum):
+    line = "    " +  typeName + "& " + cleanName + "();\n"
+
+    # Add comment
+    line += s_commentTextwrap.fill(
+        ("Return a reference providing modifiable access to the '%s' " + \
+        "property of this object.") % cleanName)
+
+    return line
+
+def genSetterDeclSnippet(typeName, cleanName, snipNum):
+    line = "    void set" + cleanName[0].upper() + cleanName[1:]
+    line += "(" + snipOptional(snipNum, "const ") + typeName
+    if typeName[-1] != "*":
+        line += genTabStopPrePost("", snipNum, "&", "") + " "
+    else:
+        line += genTabStopPrePost("", snipNum, "&", " ")
+
+    line += "value);\n"
+
+    # Add comment
+    line += s_commentTextwrap.fill(
+        ("Set the value of the '%s' property of this object to the " + \
+         "specified 'value'.") % cleanName)
+
+    return line
+
+def genDeclSnippet(classname, memberDefs, funcSnipGen):
+    # Generate a snippet for accessors
+
+    snipLines = []
+    snipNum = 2
+    for typeName, mem in parseutil.parseMembers(memberDefs):
+        cleanName = re.match(r'd_([^_]*)_?p?', mem).group(1)
+
+        line = ""
+        if snipNum > 2:
+            line += "}"
+        line += "${%d:" % (snipNum - 1)
+        line += funcSnipGen(typeName, cleanName, snipNum)
+        #line += genAccessorDeclSnippet(typeName, cleanName, snipNum)
+        snipLines.append(line)
+
+        snipLines.append("")
+
+        snipNum += 2
+
+    snipLines.append("}")
 
     return "\n".join(snipLines)
