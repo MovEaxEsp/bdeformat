@@ -357,6 +357,5 @@ class TestDriver(unittest.TestCase):
           "Foo", SectionType.ACCESSORS,
           None)
 
-# Test functions in 'bdeformatutil'
 if __name__ == "__main__":
     unittest.main();

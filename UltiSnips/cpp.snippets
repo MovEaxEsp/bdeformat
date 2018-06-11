@@ -14,6 +14,43 @@ def clearSnipLine(snip):
 	snip.buffer[snip.line] = ""
 	snip.cursor.set(snip.line, 0)
 
+def extractClassSectionAnywhere(className, section):
+    """
+    Use 'parseutil.extractClassSection' to attempt to find the specified
+    'section' of the specified 'class'.  If it's not found in the current
+    file, and the current file is a .cpp, open the corresponding .h and try to
+    find it there before giving up.
+    """
+
+    def lineGen():
+        for line in range(0, len(vim.current.buffer)):
+            yield vim.current.buffer[line]
+
+    content = parseutil.extractClassSection(lineGen(), className, section)
+    if content != None:
+        return content
+
+    # See if we can load the header,  and find the section there
+    bufName = vim.current.buffer.name
+    if not bufName.endswith(".cpp"):
+        return None
+
+    bufName = bufName.replace(".cpp", ".h")
+    try:
+        with open(bufName) as f:
+            def hLineGen():
+                for line in f:
+                    yield line.rstrip("\n")
+
+            content = parseutil.extractClassSection(hLineGen(),
+                                                    className,
+                                                    section)
+    except e:
+        # File doesn't exist.  Do nothing; content will remain None
+        pass
+
+    return content
+
 def expandCctorSnippet(snip):
 	"""
 	Generate and expand a snippet for a copy constructor, using the
@@ -30,8 +67,7 @@ def expandCctorSnippet(snip):
 	memberDefs = snip.visual_content
 	if len(memberDefs) == 0 and len(classname) > 0:
 		# Find the members section of the classname
-		memberDefs = sniputil.extractClassSectionAnywhere(classname,
-														  SectionType.DATA)
+		memberDefs = extractClassSectionAnywhere(classname, SectionType.DATA)
 
 	clearSnipLine(snip)
 	snip.expand_anon(sniputil.genCctorSnippet(classname, memberDefs))
@@ -60,8 +96,7 @@ def expandCtorMemSnippet(snip):
 		classname = parseutil.findClassName(lineGen(snip.line, 0))
 		if len(classname) > 0:
 			# Find the members section of the classname
-			members = sniputil.extractClassSectionAnywhere(classname,
-														   SectionType.DATA)
+			members = extractClassSectionAnywhere(classname, SectionType.DATA)
 
 	clearSnipLine(snip)
 	snip.expand_anon(sniputil.genCtorMemSnippet(members, separator))
@@ -100,7 +135,7 @@ def expandDefSnippet(snip):
 		if not section:
 			raise Error("Need to be in a bde section, or have visual content")
 
-		decls = sniputil.extractClassSectionAnywhere(classname, section)
+		decls = extractClassSectionAnywhere(classname, section)
 		if not decls:
 			raise Error("Can't find section %s in class %s" % \
 														  (section, classname))
@@ -147,17 +182,14 @@ def expandDeclSnippet(snip, manipSetters = False):
 		raise Exception("Need to be under an ACCESSORS or MANIPULATORS header")
 
 	if section == SectionType.ACCESSORS:
-		snipText = sniputil.genDeclSnippet(classname,
-										   memberDefs,
+		snipText = sniputil.genDeclSnippet(memberDefs,
 										   sniputil.genAccessorDeclSnippet)
 	elif section == SectionType.MANIPULATORS:
 		if manipSetters:
-			snipText = sniputil.genDeclSnippet(classname,
-											   memberDefs,
+			snipText = sniputil.genDeclSnippet(memberDefs,
 											   sniputil.genSetterDeclSnippet)
 		else:
 			snipText = sniputil.genDeclSnippet(
-										    classname,
 								            memberDefs,
 								            sniputil.genManipulatorDeclSnippet)
 

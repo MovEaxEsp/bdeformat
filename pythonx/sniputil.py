@@ -6,7 +6,6 @@ various BDE-style portions of C++.
 """
 
 import bdeformatutil
-import vim
 import parseutil
 import re
 from sectiontype import SectionType
@@ -21,7 +20,7 @@ def snipOptional(snipNum, text, expandWhenNotEmpty = True):
     """
     Return a snippet string that will have the specified 'text' depending on
     whether the content of the specified 'snipNum' snippet tabstop isn't
-    empty, as determined by the specified 'expansdWhenNotEmpty'.
+    empty, as determined by the specified 'expandWhenNotEmpty'.
     """
 
     return "`!p snip.rv = \"\"\"" + text + "\"\"\" " + \
@@ -52,43 +51,6 @@ def genTabStopPrePost(preText, tabStopNum, defaultVal, postText):
         ret += snipOptional(tabStopNum, postText)
 
     return ret
-
-def extractClassSectionAnywhere(className, section):
-    """
-    Use 'parseutil.extractClassSection' to attempt to find the specified
-    'section' of the specified 'class'.  If it's not found in the current
-    file, and the current file is a .cpp, open the corresponding .h and try to
-    find it there before giving up.
-    """
-
-    def lineGen():
-        for line in range(0, len(vim.current.buffer)):
-            yield vim.current.buffer[line]
-
-    content = parseutil.extractClassSection(lineGen(), className, section)
-    if content != None:
-        return content
-
-    # See if we can load the header,  and find the section there
-    bufName = vim.current.buffer.name
-    if not bufName.endswith(".cpp"):
-        return None
-
-    bufName = bufName.replace(".cpp", ".h")
-    try:
-        with open(bufName) as f:
-            def hLineGen():
-                for line in f:
-                    yield line.rstrip("\n")
-
-            content = parseutil.extractClassSection(hLineGen(),
-                                                    className,
-                                                    section)
-    except e:
-        # File doesn't exist.  Do nothing; content will remain None
-        pass
-
-    return content
 
 def genCctorSnippet(classname, memberDefs):
     """
@@ -193,6 +155,14 @@ def genDefSnippet(classname, decls, inHeader):
     return "\n".join(snipLines)
 
 def genAccessorDeclSnippet(typeName, cleanName, snipNum):
+    """
+    Generate a snippet for a accessor function definition, i.e. a const
+    function that returns either a value or a const reference to a member
+    variable of the specific 'typeName' type, with the specified 'cleanName',
+    creating any snippets starting at the specified 'snipNum'.  A 'cleanName'
+    is the variable name without the leading 'd_' or any trailing '_p'.
+    """
+
     line = "    " + snipOptional(snipNum, "const ") + typeName
     if typeName[-1] != "*":
         line += genTabStopPrePost("", snipNum, "&", "") + " "
@@ -214,6 +184,13 @@ def genAccessorDeclSnippet(typeName, cleanName, snipNum):
     return line
 
 def genManipulatorDeclSnippet(typeName, cleanName, snipNum):
+    """
+    Generate a snippet for a direct manipulator declaration for a member
+    variable of the specified 'typeName' with the specified 'cleanName',
+    starting any snippets at the specified 'snipNum'.  A 'cleanName' is the
+    variable name without the leading 'd_' or any trailing '_p'.
+    """
+
     line = "    " +  typeName + "& " + cleanName + "();\n"
 
     # Add comment
@@ -224,6 +201,12 @@ def genManipulatorDeclSnippet(typeName, cleanName, snipNum):
     return line
 
 def genSetterDeclSnippet(typeName, cleanName, snipNum):
+    """
+    Generate a snippet for a setter declaration for a member variable of the
+    specified 'typeName' with the specified 'cleanName', starting any snippets
+    at the specified 'snipNum'.  A 'cleanName' is the variable name without
+    the leading 'd_' or any trailing '_p'.
+    """
     line = "    void set" + cleanName[0].upper() + cleanName[1:]
     line += "(" + snipOptional(snipNum, "const ") + typeName
     if typeName[-1] != "*":
@@ -240,8 +223,12 @@ def genSetterDeclSnippet(typeName, cleanName, snipNum):
 
     return line
 
-def genDeclSnippet(classname, memberDefs, funcSnipGen):
-    # Generate a snippet for accessors
+def genDeclSnippet(memberDefs, funcSnipGen):
+    """
+    Generate a snippet for the declarations of functions for the member
+    variables defined in the specified 'memberDefs' using the specified
+    'funcSnipGen' to generate the snippet for each parsed variable definition.
+    """
 
     snipLines = []
     snipNum = 2
@@ -253,7 +240,6 @@ def genDeclSnippet(classname, memberDefs, funcSnipGen):
             line += "}"
         line += "${%d:" % (snipNum - 1)
         line += funcSnipGen(typeName, cleanName, snipNum)
-        #line += genAccessorDeclSnippet(typeName, cleanName, snipNum)
         snipLines.append(line)
 
         snipLines.append("")
