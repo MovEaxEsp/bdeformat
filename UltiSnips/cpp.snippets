@@ -119,19 +119,21 @@ def expandDefSnippet(snip):
 	if not classname:
 		raise Error("Need to be under a BDE class/struct heading")
 
+	# Search up for a section name, and find the corresponding section in
+	# the class definition to find out what we're expanding
+	section = None
+	for line in range(snip.line, 0, -1):
+		section = SectionType.check(snip.buffer[line])
+		if section == SectionType.ACCESSORS or \
+		   section == SectionType.PRIVATE_ACCESSORS or \
+		   section == SectionType.MANIPULATORS or \
+		   section == SectionType.PRIVATE_MANIPULATORS or \
+		   section == SectionType.CREATORS or \
+		   section == SectionType.PRIVATE_CREATORS:
+			break
+
 	decls = snip.visual_content
 	if len(decls) == 0:
-		# Search up for a section name, and find the corresponding section in
-		# the class definition to pull declarations from
-		section = None
-		for line in range(snip.line, 0, -1):
-			section = SectionType.check(snip.buffer[line])
-			if section == SectionType.ACCESSORS or \
-			   section == SectionType.PRIVATE_ACCESSORS or \
-			   section == SectionType.MANIPULATORS or \
-			   section == SectionType.PRIVATE_MANIPULATORS:
-				break
-
 		if not section:
 			raise Error("Need to be in a bde section, or have visual content")
 
@@ -140,8 +142,15 @@ def expandDefSnippet(snip):
 			raise Error("Can't find section %s in class %s" % \
 														  (section, classname))
 
+	# Find the members section of the classname
+	memberDefs = ""
+	if section == SectionType.CREATORS or \
+	   section == SectionType.PRIVATE_CREATORS:
+		memberDefs = extractClassSectionAnywhere(classname, SectionType.DATA)
+
 	clearSnipLine(snip)
-	snip.expand_anon(sniputil.genDefSnippet(classname, decls, inHeader))
+	snip.expand_anon(
+				sniputil.genDefSnippet(classname, decls, inHeader, memberDefs))
 
 def expandDeclSnippet(snip, manipSetters = False):
 

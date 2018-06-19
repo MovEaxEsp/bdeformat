@@ -233,6 +233,8 @@ class TestDriver(unittest.TestCase):
           ("const char *", "getStr", "()", "const;"))
         T("int& get_int(int arg) = 0;",
           ("int&", "get_int", "(int arg)", "= 0;"))
+        T("Foo(int a, double b);",
+          ("", "Foo", "(int a, double b)", ";"))
 
     def test_parseFuncDeclarations(self):
         def T(s, expected):

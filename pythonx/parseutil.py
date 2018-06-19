@@ -329,8 +329,8 @@ def parseFuncDeclaration(decl):
     Parse the specified function declaration 'decl', which is a C++ member
     function declaration with all comments and leading/trailing whitespace
     removed, into a tuple of the form:
-    (return type, name, parameters, suffix)
-    'parameters' includes the opening and closing parnthesis, and 'suffix' is
+    ([return type], name, parameters, suffix)
+    'parameters' includes the opening and closing parenthesis, and 'suffix' is
     the text after the closing parenthesis, up to and including the ending
     semicolon.  If the declaration can't be parsed, None is returned.
     """
@@ -347,10 +347,19 @@ def parseFuncDeclaration(decl):
     nameStart = max(decl.rfind(" ", 0, openParen),
                     decl.rfind("*", 0, openParen),
                     decl.rfind("&", 0, openParen))
-    if nameStart == -1:
-        return None
 
-    return (decl[:nameStart+1].strip(),
+    declType = ""
+    if nameStart > 0:
+        # Have a type
+        declType = decl[:nameStart+1]
+
+        # Remove things that aren't parts of a type
+        declType = re.sub(r'explicit', '', declType)
+        declType = re.sub(r'virtual', '', declType)
+        declType = re.sub(r'static', '', declType)
+        declType = declType.strip()
+
+    return (declType,
             decl[nameStart + 1:openParen].strip(),
             decl[openParen:closeParen+1].strip(),
             decl[closeParen + 1:].strip())

@@ -28,34 +28,46 @@ def printStrDiff(a, b):
 class TestDriver(unittest.TestCase):
 
     def test_snipOptional(self):
-        F = sniputil.snipOptional
+        class Snip:
+            def __init__(self):
+                self.rv = "Def"
 
-        self.assertEqual(
-            F(1, "abc"),
-            "`!p snip.rv = \"\"\"abc\"\"\" if len(t[1]) > 0 else ''`")
+        def T(snipNum, text, expandWhenNotEmpty, ts, res):
 
-        self.assertEqual(
-            F(2, "'\"'", True),
-            "`!p snip.rv = \"\"\"'\"'\"\"\" if len(t[2]) > 0 else ''`")
+            code = sniputil.snipOptional(snipNum, text, expandWhenNotEmpty)
 
-        self.assertEqual(
-            F(20, "abc", False),
-            "`!p snip.rv = \"\"\"abc\"\"\" if len(t[20]) == 0 else ''`")
+            ctx = {"snip": Snip(), "t": ts}
+            # Strip out the `!p and `
+            exec code[4:-1] in ctx
+            self.assertEqual(ctx["snip"].rv, res)
 
-    def test_genTabStopPrePost(self):
-        F = sniputil.genTabStopPrePost
+        T(1, "a", True, [0, "b"], "a")
+        T(1, "a", True, [0, ""], "")
+        T(1, "a", False, [0, "b"], "")
+        T(1, "a", False, [0, ""], "a")
+        T([1, 2], "a", True, [0, "a", "b"], "a")
+        T([1, 2], "a", True, [0, "", "b"], "")
+        T([1, 2], "a", True, [0, "a", ""], "")
+        T([1, 2], "a", True, [0, "", ""], "")
+        T([1, 2], "a", False, [0, "a", "b"], "")
+        T([1, 2], "a", False, [0, "", "b"], "")
+        T([1, 2], "a", False, [0, "a", ""], "")
+        T([1, 2], "a", False, [0, "", ""], "a")
+
+    def test_genTabStop(self):
+        F = sniputil.genTabStop
         A = lambda a, b: self.assertEqual(a, b, printStrDiff(a, b))
 
-        A(F("", 1, "", ""),
+        A(F(1, ""),
           "$1")
 
-        A(F("", 2, "abc", ""),
+        A(F(2, "abc"),
           "${2:abc}")
 
-        A(F("preA", 3, "def", ""),
+        A(F(3, "def", pre="preA"),
           "%s${3:def}" % sniputil.snipOptional(3, "preA"))
 
-        A(F("preB", 4, "ghi", "postA"),
+        A(F(4, "ghi", pre="preB", post="postA"),
           "%s${4:ghi}%s" % (sniputil.snipOptional(4, "preB"),
                             sniputil.snipOptional(4, "postA")))
 
@@ -76,10 +88,10 @@ ${1:Foo}::$1(const $1& other%s)
 , b_p(other.b_p%s)
 {
 }
-""" % (sniputil.genTabStopPrePost(
-                          ", bslma::Allocator *", 2, "basicAllocator", " = 0"),
-       sniputil.genTabStopPrePost(", ", 3, "$2", ""),
-       sniputil.genTabStopPrePost(", ", 4, "$2", "")))
+""" % (sniputil.genTabStop(
+                 2, "basicAllocator", pre=", bslma::Allocator *", post=" = 0"),
+       sniputil.genTabStop(3, "$2", pre=", "),
+       sniputil.genTabStop(4, "$2", pre=", ")))
 
         T("Foo",
           "",
@@ -87,8 +99,8 @@ ${1:Foo}::$1(const $1& other%s)
 ${1:Foo}::$1(const $1& other%s)
 {
 }
-""" % (sniputil.genTabStopPrePost(
-                         ", bslma::Allocator *", 2, "basicAllocator", " = 0")))
+""" % (sniputil.genTabStop(
+                2, "basicAllocator", pre=", bslma::Allocator *", post=" = 0")))
 
         T("",
           "",
@@ -96,8 +108,8 @@ ${1:Foo}::$1(const $1& other%s)
 $1::$1(const $1& other%s)
 {
 }
-""" % (sniputil.genTabStopPrePost(
-                         ", bslma::Allocator *", 2, "basicAllocator", " = 0")))
+""" % (sniputil.genTabStop(
+                2, "basicAllocator", pre=", bslma::Allocator *", post=" = 0")))
 
     def test_genCtorMemSnippet(self):
         F = sniputil.genCtorMemSnippet
@@ -122,8 +134,10 @@ $1::$1(const $1& other%s)
     def test_genDefSnippet(self):
         F = sniputil.genDefSnippet
         A = lambda a, b: self.assertEqual(a, b, printStrDiff(a, b))
-        def T(className, decls, inHeader, expected):
-            A(F(className, decls, inHeader), expected[1:-1])
+        SO = sniputil.snipOptional;
+        GT = sniputil.genTabStop;
+        def T(className, decls, inHeader, memberDefs, expected):
+            A(F(className, decls, inHeader, memberDefs), expected[1:-1])
 
         T("APrettyLongClassNameReallyReallyLong",
           """
@@ -134,48 +148,114 @@ $1::$1(const $1& other%s)
         // A really fancy function
           """,
           False,
+          "",
           """
 void *APrettyLongClassNameReallyReallyLong::getMem1()
-{
-    $1
+{%s
 }
 
 int& APrettyLongClassNameReallyReallyLong::someOtherFunc(
                                            int                             a,
                                            char                           *foo,
                                            const bslma::ManagedPtr<void>&  b)
-{
-    $2
+{%s
 }
 
-""")
+""" % (sniputil.genTabStop(1, "// TODO", "\n    "),
+       sniputil.genTabStop(2, "// TODO", "\n    ")))
 
         T("APrettyLongClassNameReallyReallyLong",
           """
-    void *getMem1();
-        // Some function
-
     int& someOtherFunc(int a, char *foo, const bslma::ManagedPtr<void>& b);
         // A really fancy function
           """,
           True,
+          "",
           """
-inline
-void *APrettyLongClassNameReallyReallyLong::getMem1()
-{
-    $1
-}
-
 inline
 int& APrettyLongClassNameReallyReallyLong::someOtherFunc(
                                            int                             a,
                                            char                           *foo,
                                            const bslma::ManagedPtr<void>&  b)
-{
-    $2
+{%s
 }
 
-""")
+""" % (sniputil.genTabStop(1, "// TODO", "\n    ")))
+
+        T("ClassName",
+          """
+          int someAccessor() const; // my accessor
+          """,
+          False,
+          "",
+          """
+int ClassName::someAccessor() const
+{%s
+}
+
+""" % GT(1, "// TODO", pre="\n    "))
+
+        T("ClassName",
+          """
+          static ClassName(int intArg, double doubleArg, void *voidArg,
+                    int *intPtr = 0,
+                    bslma::Allocator *basicAllocator = 0);
+                // A constructor
+          """,
+          False,
+          """
+          double d_doubleArg;
+          void *d_voidArg_p;
+          void *d_oneMoreMem_p;
+          bslma::Allocator *d_allocator_p;
+          """,
+          """
+ClassName::ClassName(int               intArg,
+                     double            doubleArg,
+                     void             *voidArg,
+                     int              *intPtr,
+                     bslma::Allocator *basicAllocator)
+: d_doubleArg(%s)
+, d_voidArg_p(%s)
+, d_oneMoreMem_p(%s)
+, d_allocator_p(%s)
+{%s
+}
+
+""" % (GT(1, "doubleArg") + SO([1,2], ", ") + GT(2, "basicAllocator"),
+       GT(3, "voidArg") + SO([3,4], ", ") + GT(4, "basicAllocator"),
+       GT(5) + SO([5, 6], ", ") + GT(6, "basicAllocator"),
+       GT(7, "bslma::Default::allocator(basicAllocator)"),
+       GT(8, "// TODO", pre="\n    ")))
+
+        T("ClassName",
+          """
+          explicit virtual ClassName(const ClassName& orig,
+          bslma::Allocator *basicAllocator = 0);
+                // A constructor
+          """,
+          True,
+          """
+          double d_doubleArg;
+          void *d_voidArg_p;
+          void *d_oneMoreMem_p;
+          bslma::Allocator *d_allocator_p;
+          """,
+          """
+inline
+ClassName::ClassName(const ClassName& orig, bslma::Allocator *basicAllocator)
+: d_doubleArg(%s)
+, d_voidArg_p(%s)
+, d_oneMoreMem_p(%s)
+, d_allocator_p(%s)
+{%s
+}
+
+""" % (GT(1, "orig.d_doubleArg") + SO([1,2], ", ") + GT(2, "basicAllocator"),
+       GT(3, "orig.d_voidArg_p") + SO([3,4], ", ") + GT(4, "basicAllocator"),
+       GT(5, "orig.d_oneMoreMem_p") + SO([5,6], ", ")+GT(6, "basicAllocator"),
+       GT(7, "bslma::Default::allocator(basicAllocator)"),
+       GT(8, "// TODO", pre="\n    ")))
 
     def test_genAccessorDeclSnippet(self):
         F = sniputil.genAccessorDeclSnippet
