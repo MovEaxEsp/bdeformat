@@ -39,6 +39,9 @@ class SectionType:
     PRIVATE = 10
         # A 'private:' section
 
+    END = 11
+        # A section end that doesn't indicate the start of another section
+
     OTHER = 99
         # A different known section type
 
@@ -59,9 +62,11 @@ class SectionType:
         "// PRIVATE TYPES"        : OTHER,
         "// FRIENDS"              : OTHER,
         "// TRAITS"               : OTHER,
-        "}"                       : OTHER,
-        "};"                      : OTHER
+        "}"                       : END,
+        "};"                      : END
     }
+
+    __reverseMap = {val: name for name, val in  __sectionMap.items()}
 
     @staticmethod
     def check(s):
@@ -70,8 +75,12 @@ class SectionType:
         section header.  Return one of the above enumerated values if so, and
         'None' otherwise.
         """
-        s = s.strip()
-        if s in SectionType.__sectionMap:
-            return SectionType.__sectionMap[s]
-        else:
-            return None
+        return SectionType.__sectionMap.get(s.strip(), None)
+
+    @staticmethod
+    def getName(section):
+        """
+        Return the string representation of the specified numeric 'section',
+        which is one of the values of this component's enumeration.
+        """
+        return SectionType.__reverseMap.get(section, "UNKNOWN")

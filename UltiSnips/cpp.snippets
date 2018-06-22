@@ -14,10 +14,10 @@ def clearSnipLine(snip):
 	snip.buffer[snip.line] = ""
 	snip.cursor.set(snip.line, 0)
 
-def extractClassSectionAnywhere(className, section):
+def extractClassSectionAnywhere(className, sections):
     """
-    Use 'parseutil.extractClassSection' to attempt to find the specified
-    'section' of the specified 'class'.  If it's not found in the current
+    Use 'parseutil.extractClassSections' to attempt to find the specified
+    'sections' of the specified 'class'.  If it's not found in the current
     file, and the current file is a .cpp, open the corresponding .h and try to
     find it there before giving up.
     """
@@ -26,7 +26,7 @@ def extractClassSectionAnywhere(className, section):
         for line in range(0, len(vim.current.buffer)):
             yield vim.current.buffer[line]
 
-    content = parseutil.extractClassSection(lineGen(), className, section)
+    content = parseutil.extractClassSections(lineGen(), className, sections)
     if content != None:
         return content
 
@@ -42,9 +42,9 @@ def extractClassSectionAnywhere(className, section):
                 for line in f:
                     yield line.rstrip("\n")
 
-            content = parseutil.extractClassSection(hLineGen(),
-                                                    className,
-                                                    section)
+            content = parseutil.extractClassSections(hLineGen(),
+                                                     className,
+                                                     sections)
     except e:
         # File doesn't exist.  Do nothing; content will remain None
         pass
@@ -62,7 +62,7 @@ def expandCctorSnippet(snip):
 		for line in range(start, end, step):
 			yield snip.buffer[line]
 
-	classname = parseutil.findClassName(lineGen(snip.line, 0))
+	classname, _ = parseutil.findClassHeader(lineGen(snip.line, 0))
 
 	memberDefs = snip.visual_content
 	if len(memberDefs) == 0 and len(classname) > 0:
@@ -93,7 +93,7 @@ def expandCtorMemSnippet(snip):
 			for line in range(start, end, step):
 				yield snip.buffer[line]
 
-		classname = parseutil.findClassName(lineGen(snip.line, 0))
+		classname, _ = parseutil.findClassHeader(lineGen(snip.line, 0))
 		if len(classname) > 0:
 			# Find the members section of the classname
 			members = extractClassSectionAnywhere(classname, SectionType.DATA)
@@ -115,42 +115,55 @@ def expandDefSnippet(snip):
 		for line in range(snip.line, 0, -1):
 			yield snip.buffer[line]
 
-	classname = parseutil.findClassName(lineGen())
+	searchSections = [
+		SectionType.PRIVATE_CREATORS,
+		SectionType.PRIVATE_MANIPULATORS,
+		SectionType.PRIVATE_ACCESSORS,
+		SectionType.CREATORS,
+		SectionType.MANIPULATORS,
+		SectionType.ACCESSORS]
+
+	classname, section = parseutil.findClassHeader(lineGen(),
+												   sections=searchSections)
 	if not classname:
 		raise Error("Need to be under a BDE class/struct heading")
-
-	# Search up for a section name, and find the corresponding section in
-	# the class definition to find out what we're expanding
-	section = None
-	for line in range(snip.line, 0, -1):
-		section = SectionType.check(snip.buffer[line])
-		if section == SectionType.ACCESSORS or \
-		   section == SectionType.PRIVATE_ACCESSORS or \
-		   section == SectionType.MANIPULATORS or \
-		   section == SectionType.PRIVATE_MANIPULATORS or \
-		   section == SectionType.CREATORS or \
-		   section == SectionType.PRIVATE_CREATORS:
-			break
 
 	decls = snip.visual_content
 	if len(decls) == 0:
 		if not section:
-			raise Error("Need to be in a bde section, or have visual content")
-
-		decls = extractClassSectionAnywhere(classname, section)
-		if not decls:
-			raise Error("Can't find section %s in class %s" % \
+			decls = extractClassSectionAnywhere(classname, searchSections)
+			if not decls:
+				raise Exception(
+				  "Can't find any 'def'able sections in  class %s" % classname)
+		else:
+			decls = extractClassSectionAnywhere(classname, section)
+			if not decls:
+				raise Exception("Can't find section %s in class %s" % \
 														  (section, classname))
 
 	# Find the members section of the classname
-	memberDefs = ""
-	if section == SectionType.CREATORS or \
-	   section == SectionType.PRIVATE_CREATORS:
-		memberDefs = extractClassSectionAnywhere(classname, SectionType.DATA)
+	memberDefs = extractClassSectionAnywhere(classname, SectionType.DATA)
 
+	# Gen the snippet
+	if isinstance(decls, list):
+		snipText = ""
+		snipNum = 1
+		for i in range(0, len(searchSections)):
+			if not decls[i]:
+				continue
+
+			snipText += SectionType.getName(searchSections[i]) + "\n"
+			secText, snipNum = sniputil.genDefSnippet(
+							classname, decls[i], inHeader, memberDefs, snipNum)
+			snipText += secText + "\n\n"
+
+	else:
+		snipText = sniputil.genDefSnippet(
+										classname, decls, inHeader, memberDefs)
+
+	# Expand
 	clearSnipLine(snip)
-	snip.expand_anon(
-				sniputil.genDefSnippet(classname, decls, inHeader, memberDefs))
+	snip.expand_anon(snipText)
 
 def expandDeclSnippet(snip, manipSetters = False):
 
@@ -160,35 +173,27 @@ def expandDeclSnippet(snip, manipSetters = False):
 		for line in range(start, end, step):
 			yield snip.buffer[line]
 
-	classname = parseutil.findClassName(lineGen(snip.line, 0))
+	searchSections = [
+		SectionType.ACCESSORS,
+		SectionType.MANIPULATORS]
+
+	classname, section = parseutil.findClassHeader(lineGen(snip.line, 0),
+										  sections=searchSections)
 	if not classname:
 		raise Exception("Need to be under a BDE class/struct heading")
+
+	if not section:
+		raise Exception("Need to be under an ACCESSORS or MANIPULATORS header")
 
 	# Determine the member definitions to use
 	memberDefs = snip.visual_content
 	if len(memberDefs) == 0 and len(classname) > 0:
 		# Find the members section of the classname
 
-		memberDefs = parseutil.extractClassSection(
+		memberDefs = parseutil.extractClassSections(
 												  lineGen(0, len(snip.buffer)),
 												  classname,
 												  SectionType.DATA)
-
-	# See if we're under an ACCESSORS or MANIPULATORS heading
-	section = None
-	for line in lineGen(snip.line, 0):
-		section = SectionType.check(line)
-		if section == SectionType.CREATORS or \
-		   section == SectionType.PRIVATE_CREATORS or \
-		   section == SectionType.ACCESSORS or \
-		   section == SectionType.PRIVATE_ACCESSORS or \
-		   section == SectionType.MANIPULATORS or \
-		   section == SectionType.PRIVATE_MANIPULATORS:
-			break
-
-	if section != SectionType.ACCESSORS and \
-	   section != SectionType.MANIPULATORS:
-		raise Exception("Need to be under an ACCESSORS or MANIPULATORS header")
 
 	if section == SectionType.ACCESSORS:
 		snipText = sniputil.genDeclSnippet(memberDefs,

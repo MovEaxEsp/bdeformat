@@ -8,7 +8,6 @@ various BDE-style portions of C++.
 import bdeformatutil
 import parseutil
 import re
-from sectiontype import SectionType
 import textwrap
 
 s_commentTextwrap = textwrap.TextWrapper()
@@ -170,7 +169,7 @@ def genCtorInitializerList(className, argTypes, memberDefs, snipNum):
 
     return ("\n".join(lines), snipNum)
 
-def genDefSnippet(classname, decls, inHeader, memberDefs=""):
+def genDefSnippet(classname, decls, inHeader, memberDefs="", snipNum=1):
     """
     Generate a snippet for the definitions of the specified 'decls' of the
     specified 'classname' with the specified 'memberDefs' member variable
@@ -182,7 +181,6 @@ def genDefSnippet(classname, decls, inHeader, memberDefs=""):
 
     # Generate the snippet, with a tab stop inside of each function
     snipLines = []
-    snipNum = 1
     for mem in parsedMembers:
         if inHeader:
             snipLines.append("inline")
@@ -245,7 +243,7 @@ def genDefSnippet(classname, decls, inHeader, memberDefs=""):
 
         snipNum += 1
 
-    return "\n".join(snipLines)
+    return ("\n".join(snipLines), snipNum)
 
 def genAccessorDeclSnippet(typeName, cleanName, snipNum):
     """

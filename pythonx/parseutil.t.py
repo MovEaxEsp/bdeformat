@@ -263,39 +263,57 @@ class TestDriver(unittest.TestCase):
           ])
 
 
-    def test_findClassName(self):
-        def T(s, expected):
+    def test_findClassHeader(self):
+        def T(s, onlyClassDef, sections, expected):
             def gen():
                 for line in s.split("\n"):
                     yield line
 
-            res = parseutil.findClassName(gen())
+            res = parseutil.findClassHeader(gen(), onlyClassDef, sections)
             self.assertEqual(res, expected)
 
         T("""
             a
             b
              // class foo
-           """, "foo")
+           """, False, [], ("foo", None))
         T("""
             // -----------
             // struct MySecondClass
             // struct MyThirdClass
-          """, "MySecondClass")
+          """, False, [], ("MySecondClass", None))
         T("""
             a
             b
             c
-          """, None)
+          """, False, [], (None, None))
+        T("""
+            // ACCESSORS
+            // MANIPULATORS
+            // class Foo
+            // class Bar
+            """, False, [SectionType.ACCESSORS],
+            ("Foo", SectionType.ACCESSORS))
+        T("""
+            // ACCESSORS
+            // MANIPULATORS
+            // class Foo
+            // class Bar
+            """, False, [SectionType.MANIPULATORS],
+            ("Foo", SectionType.MANIPULATORS))
 
-    def test_extractClassSection(self):
-        def T(s, className, section, expected):
+    def test_extractClassSections(self):
+        def T(s, className, sections, expected):
             def gen():
                 for line in s.split("\n"):
                     yield line
 
-            res = parseutil.extractClassSection(gen(), className, section)
-            self.assertEqual(res, None if expected == None else expected[1:])
+            res = parseutil.extractClassSections(gen(), className, sections)
+            if isinstance(expected, str):
+                expected = expected[1:]
+            elif isinstance(expected, list):
+                expected = [e[1:] for e in expected]
+            self.assertEqual(res, expected)
 
         T("""
           a
@@ -358,6 +376,24 @@ class TestDriver(unittest.TestCase):
           """,
           "Foo", SectionType.ACCESSORS,
           None)
+
+        T("""
+        // class Foo
+        // =========
+
+        // DATA
+        int d_a;
+        // ACCESSORS
+        int foo() const;
+        // MANIPULATORS
+        int& foo();
+        """,
+        "Foo", [SectionType.DATA, SectionType.MANIPULATORS],
+        ["""
+        int d_a;""",
+        """
+        int& foo();
+        """])
 
 if __name__ == "__main__":
     unittest.main();

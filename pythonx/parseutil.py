@@ -5,6 +5,7 @@ tradition of regex
 
 import re
 
+from functools import reduce
 from sectiontype import SectionType
 
 def findNextOccurrence(line, pos, chars, direction):
@@ -381,66 +382,114 @@ def parseFuncDeclarations(decl):
     # in.  If a declaration fails to be parsed, leave it in the result verbatim
     return [parseFuncDeclaration(func) or func for func in funcs]
 
-def findClassName(lineGen, onlyDef = False):
+def findClassHeader(lineGen, onlyClassDef = False, sections = []):
     """
     Keep getting lines from the specified 'lineGen' generator, looking for
-    a class/struct section name, and return the class name if found,
-    otherwise return None.  A section name looks like
+    a class/struct section name, and remembering the first section from the
+    specified 'sections' that was found, and return a (className, section)
+    tuple if a class header was found, and (None, None) otherwise.  If one of the
+    requested section wasn't found before the class header, the 'section' in
+    the tuple will be NONE.  A section name looks like
     // ---------- (or ======)
     // class Foo
     // ---------
-    If the specified 'onlyDef' is 'True', only succeed if we find the class
+    If the specified 'onlyClassDef' is 'True', only succeed if we find the class
     definition, that is one surrounded by '// ======'
     """
 
-    if not hasattr(findClassName, "pattern"):
-        findClassName.pattern = re.compile(r'^ *// (?:class|struct) (.*)')
-        findClassName.defPattern = re.compile(r'^ *// =+ *$')
+    if not hasattr(findClassHeader, "pattern"):
+        findClassHeader.pattern = re.compile(r'^ *// (?:class|struct) (.*)')
+        findClassHeader.defPattern = re.compile(r'^ *// =+ *$')
+
+    section = None
 
     for line in lineGen:
-        match = findClassName.pattern.match(line)
+        # Figure out the section if we didn't hit one yet
+        if len(sections) > 0 and not section:
+            section = SectionType.check(line)
+            if section not in sections:
+                section = None
+
+        # See if it's the class heaer
+        match = findClassHeader.pattern.match(line)
         if (match):
-            if onlyDef:
-                if not findClassName.defPattern.match(next(lineGen)):
+            if onlyClassDef:
+                if not findClassHeader.defPattern.match(next(lineGen)):
                     continue
-            return match.group(1)
+            return (match.group(1), section)
 
-    return None
+    return (None, None)
 
-def extractClassSection(lineGen, className, section):
+def extractClassSections(lineGen, className, sections):
     """
     Using the specified 'lineGen' generator of lines, look for the definition
     of the specified 'className' and extract from within it the specified
-    'section' 'SectionType'.  Return the content of the requested section or
-    None if it couldn't be found.
+    'sections' 'SectionType's.  If 'section's is a list of SectionTypes,
+    return a list of the same size containing the conent of each requested
+    section, or None if that section wasn't found in the class.   If
+    'sections' isn't a list then return just the contents of the requested
+    section.  Return None if the class wasn't found or none of the requested
+    sections were found.
     """
 
+    assert className and len(className) > 0
+
+    requestedList = True
+    if not isinstance(sections, list):
+        requestedList = False
+        sections = [sections]
+
+    searchSections = {sections[i]: i for i in range(0, len(sections))}
+
+    # We'll stop looking once we hit an END section
+    searchSections[SectionType.END] = -1
+
+    retSections = [None] * len(sections)
+
     # First search for the class
-    foundClass = findClassName(lineGen, True)
-    while foundClass != None and foundClass != className:
-        foundClass = findClassName(lineGen, True)
+    foundClass = findClassHeader(lineGen, True)
+    while foundClass[0] != None and foundClass[0] != className:
+        foundClass = findClassHeader(lineGen, True)
 
     if foundClass == None:
         # Couldn't find class section
         return None
 
-    # Look for the requested section
-    foundSection = False
-    for line in lineGen:
-        if SectionType.check(line) == section:
-            foundSection = True
+    # Look for the requested sections
+    foundSection = None
+    while len(searchSections) > 0:
+        if foundSection not in searchSections:
+            for line in lineGen:
+                foundSection = SectionType.check(line)
+                if foundSection not in searchSections:
+                    foundSection = None
+                else:
+                    break
+
+        if not foundSection or foundSection == SectionType.END:
+            # Couldn't find the requested section
             break
 
-    if not foundSection:
-        # Couldn't find the requested section
+        # Keep collecting lines until we hit another SectionType
+        res = []
+        nextSection = None
+        for line in lineGen:
+            nextSection = SectionType.check(line)
+            if nextSection == None:
+                res.append(line)
+            else:
+                break
+
+        retSections[searchSections[foundSection]] = "\n".join(res)
+        del searchSections[foundSection]
+
+        foundSection = nextSection
+
+        if foundSection not in searchSections:
+            foundSection = None
+
+    if not reduce(lambda a, b: a or b, retSections):
+        # None of the requested sections were found
         return None
 
-    # Keep collecting lines until we hit another SectionType
-    res = []
-    for line in lineGen:
-        if SectionType.check(line) == None:
-            res.append(line)
-        else:
-            break
-
-    return "\n".join(res)
+    return retSections if requestedList else retSections[0]

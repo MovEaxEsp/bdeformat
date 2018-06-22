@@ -136,8 +136,10 @@ $1::$1(const $1& other%s)
         A = lambda a, b: self.assertEqual(a, b, printStrDiff(a, b))
         SO = sniputil.snipOptional;
         GT = sniputil.genTabStop;
-        def T(className, decls, inHeader, memberDefs, expected):
-            A(F(className, decls, inHeader, memberDefs), expected[1:-1])
+        def T(className, decls, inHeader, memberDefs, expStr, expNum):
+            ret = F(className, decls, inHeader, memberDefs)
+            A(ret[0], expStr[1:-1])
+            self.assertEqual(ret[1], expNum)
 
         T("APrettyLongClassNameReallyReallyLong",
           """
@@ -162,7 +164,7 @@ int& APrettyLongClassNameReallyReallyLong::someOtherFunc(
 }
 
 """ % (sniputil.genTabStop(1, "// TODO", "\n    "),
-       sniputil.genTabStop(2, "// TODO", "\n    ")))
+       sniputil.genTabStop(2, "// TODO", "\n    ")), 3)
 
         T("APrettyLongClassNameReallyReallyLong",
           """
@@ -180,7 +182,7 @@ int& APrettyLongClassNameReallyReallyLong::someOtherFunc(
 {%s
 }
 
-""" % (sniputil.genTabStop(1, "// TODO", "\n    ")))
+""" % (sniputil.genTabStop(1, "// TODO", "\n    ")), 2)
 
         T("ClassName",
           """
@@ -193,7 +195,7 @@ int ClassName::someAccessor() const
 {%s
 }
 
-""" % GT(1, "// TODO", pre="\n    "))
+""" % GT(1, "// TODO", pre="\n    "), 2)
 
         T("ClassName",
           """
@@ -226,7 +228,7 @@ ClassName::ClassName(int               intArg,
        GT(3, "voidArg") + SO([3,4], ", ") + GT(4, "basicAllocator"),
        GT(5) + SO([5, 6], ", ") + GT(6, "basicAllocator"),
        GT(7, "bslma::Default::allocator(basicAllocator)"),
-       GT(8, "// TODO", pre="\n    ")))
+       GT(8, "// TODO", pre="\n    ")), 9)
 
         T("ClassName",
           """
@@ -255,7 +257,7 @@ ClassName::ClassName(const ClassName& orig, bslma::Allocator *basicAllocator)
        GT(3, "orig.d_voidArg_p") + SO([3,4], ", ") + GT(4, "basicAllocator"),
        GT(5, "orig.d_oneMoreMem_p") + SO([5,6], ", ")+GT(6, "basicAllocator"),
        GT(7, "bslma::Default::allocator(basicAllocator)"),
-       GT(8, "// TODO", pre="\n    ")))
+       GT(8, "// TODO", pre="\n    ")), 9)
 
     def test_genAccessorDeclSnippet(self):
         F = sniputil.genAccessorDeclSnippet
