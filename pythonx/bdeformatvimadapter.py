@@ -12,7 +12,7 @@ def formatBde():
         row, col = vim.current.window.cursor
         startEnd, lines = bdeformatutil.formatBde(lineSource, row - 1, col)
     except ValueError as e:
-        print e
+        print(e)
         return
 
     # Figure out if we need to add or remove lines
