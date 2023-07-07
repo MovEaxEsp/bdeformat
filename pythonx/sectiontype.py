@@ -62,6 +62,8 @@ class SectionType:
         "// PRIVATE TYPES"        : OTHER,
         "// FRIENDS"              : OTHER,
         "// TRAITS"               : OTHER,
+        "// PRIVATE CLASS METHODS": OTHER,
+        "// CLASS METHODS"        : OTHER,
         "}"                       : END,
         "};"                      : END
     }

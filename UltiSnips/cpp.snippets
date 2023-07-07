@@ -158,7 +158,7 @@ def expandDefSnippet(snip):
 			snipText += secText + "\n\n"
 
 	else:
-		snipText = sniputil.genDefSnippet(
+		snipText, _ = sniputil.genDefSnippet(
 										classname, decls, inHeader, memberDefs)
 
 	# Expand
